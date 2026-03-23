@@ -1,6 +1,6 @@
-# Architecture Decision Records — Pipeline
+# Architecture Decision Records — Backend
 
-This log tracks architecture decisions for the House Helper pipeline (Python/FastAPI service).
+This log tracks architecture decisions for the House Helper backend (Python/FastAPI service).
 
 ## ADR Index
 

@@ -19,7 +19,7 @@ Each container runs as a standalone service with its own `pyproject.toml` / `pac
 └───────────────────────────┬─────────────────────────────────┘
                             │
 ┌───────────────────────────▼─────────────────────────────────┐
-│  2. Pipeline (Python service)                               │
+│  2. Backend (Python service)                                │
 │  Modes: CLI | Queue-triggered | API                         │
 │  ├─ Classifier (room photos → room type)                    │
 │  ├─ Criteria Checker (text + photos → P1/P2 evaluation)     │
@@ -60,7 +60,7 @@ house_helper/
 ├── outputs/                       # REGENERABLE pipeline artifacts
 │   └── houses/
 │       └── <house_slug>/    # Mirrors input_data structure
-├── pipeline/                # AI pipeline + API (Python service)
+├── backend/                 # AI pipeline + API (Python service)
 │   ├── src/
 │   │   ├── config/          # Environment-based configuration
 │   │   │   ├── __init__.py
@@ -115,7 +115,7 @@ house_helper/
 │   │   ├── integration/
 │   │   └── fixtures/        # Sample data, LLM response mocks
 │   ├── docs/
-│   │   └── adr/             # Pipeline-specific ADRs
+│   │   └── adr/             # Backend-specific ADRs
 │   ├── Dockerfile
 │   └── pyproject.toml
 ├── frontend/                # React SPA
@@ -138,7 +138,7 @@ house_helper/
 └── README.md
 ```
 
-### CLEAN Architecture (Pipeline)
+### CLEAN Architecture (Backend)
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
@@ -278,7 +278,7 @@ outputs/                                 # REGENERABLE — pipeline artifacts
 3. **Idempotency** — Delete `outputs/` and re-run pipeline; raw data in `input_data/` untouched
 
 3. **Prompt structure (simplified):**
-   - **Style templates** (`pipeline/prompts/`) — shared across all houses (user's design preferences)
+   - **Style templates** (`backend/prompts/`) — shared across all houses (user's design preferences)
    - **No room descriptions needed** — FLUX.2-pro sees the input image directly via image-to-image
    - Model preserves room structure; prompt only specifies decoration/style changes
    - `guidance` parameter controls style adherence vs structure preservation
@@ -308,7 +308,7 @@ outputs/                                 # REGENERABLE — pipeline artifacts
   "total_photos": 45,
   "results": [
     {
-      "style_template": "kitchen",             // References pipeline/prompts/kitchen.md
+      "style_template": "kitchen",             // References backend/prompts/kitchen.md
       "room_type": "kitchen",
       "source_image": "input_data/houses/Acacialaan_6/photos/008.jpg",  // Input to FLUX (no copy)
       "confidence": 0.98,
@@ -318,7 +318,7 @@ outputs/                                 # REGENERABLE — pipeline artifacts
 }
 ```
 
-### pipeline/prompts/ (style templates)
+### backend/prompts/ (style templates)
 ```markdown
 # kitchen.md
 Transform into a pastel themed sweet heaven kitchen with baking supplies,
@@ -333,7 +333,7 @@ Themed like a sweets laboratory. Keep room structure exactly as shown.
 
 FastAPI exposes `/openapi.json`. Frontend build pipeline:
 
-1. `make openapi` → exports `pipeline/openapi.json`
+1. `make openapi` → exports `backend/openapi.json`
 2. `npx openapi-typescript openapi.json -o src/api/generated/types.ts`
 3. CI verifies generated types match committed version
 
@@ -345,9 +345,9 @@ This keeps frontend types in sync with backend at all times.
 
 | Legacy Repo | Maps To | Notes |
 |-------------|---------|-------|
-| `funda_llm` | `pipeline/` | AI pipeline logic, agents, services |
-| `house_helper` | `pipeline/` | Merge with funda_llm (production features) |
-| `house_helper_app/backend` | `pipeline/src/api/` | Thin API layer merged into pipeline |
+| `funda_llm` | `backend/` | AI pipeline logic, agents, services |
+| `house_helper` | `backend/` | Merge with funda_llm (production features) |
+| `house_helper_app/backend` | `backend/src/api/` | Thin API layer merged into backend |
 | `house_helper_frontend` | `frontend/` | React SPA |
 | `house_helper_app/infra` | `infra/` | Bicep templates |
 | `funda_scrape/houses` | `data/` | Sample data structure |

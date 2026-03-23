@@ -94,7 +94,7 @@ house_helper/
 ├── input_data/              # Sample house data
 │   └── houses/
 │       └── <house_slug>/    # Each house in its own folder
-├── pipeline/                # AI pipeline + API (Python)
+├── backend/                 # AI pipeline + API (Python)
 │   ├── src/
 │   │   ├── interfaces/      # ABCs and Protocols
 │   │   ├── services/        # Concrete implementations
