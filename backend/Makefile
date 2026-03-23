@@ -1,4 +1,4 @@
-.PHONY: help install lint test dev clean
+.PHONY: help install lint test format dev clean
 
 # Default target
 help:
@@ -8,7 +8,8 @@ help:
 	@echo "  make install    Install dependencies (using uv)"
 	@echo ""
 	@echo "Quality:"
-	@echo "  make lint       Run Ruff linter and type checker"
+	@echo "  make lint       Run Ruff linter and format checker"
+	@echo "  make format     Auto-fix formatting issues"
 	@echo "  make test       Run pytest"
 	@echo ""
 	@echo "Development:"
@@ -23,6 +24,11 @@ install:
 lint:
 	uv run ruff check src tests
 	uv run ruff format --check src tests
+
+# Auto-fix formatting issues
+format:
+	uv run ruff check --fix src tests
+	uv run ruff format src tests
 
 # Run tests
 test:

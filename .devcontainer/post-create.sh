@@ -4,11 +4,21 @@
 curl -LsSf https://astral.sh/uv/install.sh | sh
 export PATH="$HOME/.local/bin:$PATH"
 
+# Install pre-commit
+pip install pre-commit -q
+
 # Install squad CLI
 npm install -g @bradygaster/squad-cli
 
 # Initialize Squad for multi-repo management
 squad init
+
+# Install git hooks (pre-commit + pre-push)
+if [ -f ".pre-commit-config.yaml" ]; then
+  chmod +x scripts/*.sh 2>/dev/null || true
+  pre-commit install --install-hooks
+  pre-commit install --hook-type pre-push
+fi
 
 # Install GitHub Copilot CLI extension (requires auth, may fail on first setup)
 gh extension install github/gh-copilot 2>/dev/null || true
@@ -40,6 +50,7 @@ cat << EOF
   ✅ $PYTHON_VER
   ✅ $UV_VER
   ✅ Squad CLI installed and initialized
+  ✅ Pre-commit hooks installed
   $COPILOT_STATUS
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

@@ -1,4 +1,4 @@
-.PHONY: help install lint test build dev clean
+.PHONY: help install lint test format build dev clean
 
 # Default target
 help:
@@ -9,6 +9,7 @@ help:
 	@echo ""
 	@echo "Quality:"
 	@echo "  make lint       Run ESLint"
+	@echo "  make format     Auto-fix linting issues"
 	@echo "  make test       Run unit tests (Vitest)"
 	@echo ""
 	@echo "Development:"
@@ -23,6 +24,10 @@ install:
 # Lint TypeScript/React code
 lint:
 	pnpm exec eslint src --ext .ts,.tsx --max-warnings 0
+
+# Auto-fix linting issues
+format:
+	pnpm exec eslint src --ext .ts,.tsx --fix
 
 # Run unit tests
 test:

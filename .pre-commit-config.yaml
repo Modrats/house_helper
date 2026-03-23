@@ -1,0 +1,56 @@
+# Pre-commit hooks configuration
+# Installed automatically by devcontainer post-create
+# Run manually: make pre-commit
+# Bypass (emergency): git commit --no-verify
+
+repos:
+  # Ruff - Python linting and formatting (auto-fix enabled)
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.4
+    hooks:
+      - id: ruff
+        name: "🐍 Ruff lint (backend)"
+        args: [--fix]
+        files: ^backend/
+      - id: ruff-format
+        name: "🐍 Ruff format (backend)"
+        files: ^backend/
+
+  # ESLint - TypeScript/React linting (auto-fix enabled)
+  - repo: local
+    hooks:
+      - id: eslint
+        name: "⚛️  ESLint (frontend)"
+        entry: bash -c 'cd frontend && pnpm exec eslint src --ext .ts,.tsx --fix --max-warnings 0'
+        language: system
+        files: ^frontend/src/.*\.(ts|tsx)$
+        pass_filenames: false
+
+  # TypeScript type checking (no auto-fix possible)
+  - repo: local
+    hooks:
+      - id: tsc
+        name: "📘 TypeScript check (frontend)"
+        entry: bash -c 'cd frontend && pnpm exec tsc --noEmit'
+        language: system
+        files: ^frontend/.*\.(ts|tsx)$
+        pass_filenames: false
+
+  # Quick tests (only on push, not every commit)
+  - repo: local
+    hooks:
+      - id: pytest-quick
+        name: "🧪 Quick tests (backend)"
+        entry: bash -c 'cd backend && uv run pytest tests -v -x --tb=short -q'
+        language: system
+        files: ^backend/
+        pass_filenames: false
+        stages: [pre-push]
+
+      - id: vitest-quick
+        name: "🧪 Quick tests (frontend)"
+        entry: bash -c 'cd frontend && pnpm exec vitest run --reporter=verbose'
+        language: system
+        files: ^frontend/
+        pass_filenames: false
+        stages: [pre-push]
