@@ -6,3 +6,6 @@
 # Squad: SubSquad activation file (local to this machine)
 .squad-workstream
 old/*
+.github/agents/squad.agent.md
+.squad/*
+.gitattributes
