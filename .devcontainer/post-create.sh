@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Install uv (fast Python package manager)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+export PATH="$HOME/.local/bin:$PATH"
+
 # Install squad CLI
 npm install -g @bradygaster/squad-cli
 
@@ -13,6 +17,7 @@ gh extension install github/gh-copilot 2>/dev/null || true
 GIT_VER=$(git --version)
 NODE_VER=$(node --version)
 PYTHON_VER=$(python --version 2>&1)
+UV_VER=$(uv --version 2>&1 || echo "not installed")
 
 # Check if Copilot CLI is installed
 if gh extension list 2>/dev/null | grep -q "gh-copilot"; then
@@ -33,6 +38,7 @@ cat << EOF
   ✅ $GIT_VER
   ✅ Node $NODE_VER
   ✅ $PYTHON_VER
+  ✅ $UV_VER
   ✅ Squad CLI installed and initialized
   $COPILOT_STATUS
 
