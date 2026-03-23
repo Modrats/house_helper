@@ -9,3 +9,5 @@ old/*
 .github/agents/squad.agent.md
 .squad/*
 .gitattributes
+.pnpm-store/*
+frontend/node_modules/*
