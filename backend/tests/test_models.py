@@ -1,6 +1,7 @@
 """Unit tests for House and related models."""
 
 import pytest
+
 from src.models.house import House, HouseMetadata, HouseStatus
 from src.models.room import Photo, Room, RoomType
 
@@ -134,11 +135,11 @@ class TestHouse:
         """House tracks filter results correctly."""
         house = House(slug="test-house")
         assert house.passed_all_filters() is True  # No filters applied yet
-        
+
         house2 = house.with_filter_result("text_filter", True)
         assert house2.filter_results["text_filter"] is True
         assert house2.passed_all_filters() is True
-        
+
         house3 = house2.with_filter_result("room_filter", False)
         assert house3.passed_all_filters() is False
         assert house3.excluded_by == "room_filter"
@@ -147,7 +148,7 @@ class TestHouse:
         """House is immutable - updates return new instances."""
         house1 = House(slug="test")
         house2 = house1.with_status(HouseStatus.CLASSIFIED)
-        
+
         assert house1.status == HouseStatus.RAW
         assert house2.status == HouseStatus.CLASSIFIED
         assert house1 is not house2
@@ -157,7 +158,7 @@ class TestHouse:
         house = House(slug="test")
         house2 = house.with_filter_score("distance", 15.5)
         house3 = house2.with_filter_score("price_score", 0.8)
-        
+
         assert house3.filter_scores["distance"] == 15.5
         assert house3.filter_scores["price_score"] == 0.8
 

@@ -1,7 +1,8 @@
 """Unit tests for the filter pipeline runner."""
 
 import pytest
-from src.interfaces.filter import FilterCriteria, IFilter
+
+from src.interfaces.filter import FilterCriteria
 from src.models.house import House, HouseMetadata
 from src.runners.run_pipeline import FilterPipeline, PipelineConfig, PipelineResult
 
@@ -131,10 +132,10 @@ class TestFilterPipeline:
         pipeline = FilterPipeline()
         pipeline.add_filter(PassAllFilter())
         pipeline.add_filter(PriceFilter())
-        
+
         criteria = FilterCriteria(max_price=400000)
         result = pipeline.run(sample_houses, criteria)
-        
+
         assert result.output_count == 1  # Only house-1 at 300k
         assert result.input_count == 3
         assert len(result.filters_applied) == 2
@@ -152,7 +153,7 @@ class TestFilterPipeline:
         pipeline = FilterPipeline(config)
         pipeline.add_filter(RejectAllFilter())
         pipeline.add_filter(PassAllFilter())  # Should not run
-        
+
         result = pipeline.run(sample_houses, FilterCriteria())
         assert result.output_count == 0
         assert len(result.filters_applied) == 1  # Only reject_all ran
@@ -187,10 +188,10 @@ class TestFilterPipeline:
         """Filter statistics are tracked."""
         pipeline = FilterPipeline()
         pipeline.add_filter(PriceFilter())
-        
+
         criteria = FilterCriteria(max_price=400000)
         result = pipeline.run(sample_houses, criteria)
-        
+
         stats = result.filter_stats["price_filter"]
         assert stats["input"] == 3
         assert stats["output"] == 1
