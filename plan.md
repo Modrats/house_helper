@@ -54,9 +54,12 @@ house_helper/
 │   └── workflows/
 │       ├── ci.yml           # Lint + test gates on PR
 │       └── deploy.yml       # Deploy to Azure on merge
-├── input_data/                    # Sample local data (gitignored real data)
+├── input_data/                    # IMMUTABLE raw data (gitignored real data)
 │   └── houses/
 │       └── <house_slug>/    # See "House Data Structure" below
+├── outputs/                       # REGENERABLE pipeline artifacts
+│   └── houses/
+│       └── <house_slug>/    # Mirrors input_data structure
 ├── pipeline/                # AI pipeline + API (Python service)
 │   ├── src/
 │   │   ├── config/          # Environment-based configuration
@@ -111,6 +114,8 @@ house_helper/
 │   │   ├── unit/
 │   │   ├── integration/
 │   │   └── fixtures/        # Sample data, LLM response mocks
+│   ├── docs/
+│   │   └── adr/             # Pipeline-specific ADRs
 │   ├── Dockerfile
 │   └── pyproject.toml
 ├── frontend/                # React SPA
@@ -120,12 +125,14 @@ house_helper/
 │   ├── public/
 │   ├── scripts/
 │   │   └── generate-api-types.sh  # Fetches openapi.json → TypeScript
+│   ├── docs/
+│   │   └── adr/             # Frontend-specific ADRs
 │   ├── Dockerfile
 │   └── package.json
 ├── infra/                   # Infrastructure as Code
 │   ├── bicep/               # Azure Bicep templates
-│   ├── docs/                # ADRs (Architecture Decision Records)
 │   └── Makefile             # deploy, destroy, status commands
+├── experiments/             # Ad-hoc notebooks, scripts, and explorations
 ├── Makefile                 # Root orchestration
 ├── docker-compose.yml       # Local dev environment
 └── README.md
@@ -228,43 +235,47 @@ Gates: PR cannot merge if lint or test fails.
 
 ## House Data Structure
 
-Each house is stored in a folder named by slug (address with underscores).
-**Raw data** (scraper output) is immutable; **outputs** are regenerable pipeline artifacts.
+Raw data and pipeline outputs are stored in **separate top-level directories** with mirrored structure.
+This keeps immutable source data cleanly separated from regenerable artifacts.
 
 ```
-houses/
-└── Acacialaan_6/
-    ├── raw/                         # IMMUTABLE — scraper output
-    │   ├── listing.json             # Schema.org metadata from Funda
-    │   ├── listing.txt              # Text description
-    │   ├── url.txt                  # Source URL
-    │   ├── screenshot.png           # Page screenshot
-    │   └── photos/                  # Original images
-    │       ├── 001.jpg
-    │       ├── 002.jpg
-    │       └── ...
-    │
-    └── outputs/                     # REGENERABLE — pipeline artifacts
+input_data/                              # IMMUTABLE — scraper output
+└── houses/
+    └── house-slug/
+        ├── listing.json                 # Schema.org metadata from Funda
+        ├── listing.txt                  # Text description
+        ├── url.txt                      # Source URL
+        ├── screenshot.png               # Page screenshot
+        └── photos/                      # Original images
+            ├── 001.jpg
+            ├── 002.jpg
+            └── ...
+
+outputs/                                 # REGENERABLE — pipeline artifacts
+└── houses/
+    └── house-slug/                    # Mirrors input_data/houses/<slug>
         ├── classifier/
-        │   └── room_classifications.json   # Maps raw/photos/*.jpg → room type
+        │   └── room_classifications.json   # Maps photos/*.jpg → room type
         ├── criteria/
         │   └── criteria_result.json
         ├── distance/
         │   └── distance_result.json
         └── imagineering/
-            ├── summary.json         # Manifest of all runs
+            ├── summary.json             # Manifest of all runs
             └── kitchen_008/
-                └── generated.png    # AI output (source ref in summary.json)
+                └── generated.png        # AI output (source ref in summary.json)
 ```
 
 ### Key Design Decisions
 
-1. **No image duplication** — `outputs/` only contains:
-   - JSON files with path references (e.g., `"source_image": "raw/photos/008.jpg"`)
+1. **Separate directories** — `input_data/` and `outputs/` are top-level siblings with mirrored `houses/<slug>/` structure
+
+2. **No image duplication** — `outputs/` only contains:
+   - JSON files with path references (e.g., `"source_image": "input_data/houses/Acacialaan_6/photos/008.jpg"`)
    - Generated images from imagineering
    - "Photos by room" is a query, not a folder — read `room_classifications.json`
 
-2. **Idempotency** — Delete `outputs/` and re-run pipeline; raw data untouched
+3. **Idempotency** — Delete `outputs/` and re-run pipeline; raw data in `input_data/` untouched
 
 3. **Prompt structure (simplified):**
    - **Style templates** (`pipeline/prompts/`) — shared across all houses (user's design preferences)
@@ -272,7 +283,7 @@ houses/
    - Model preserves room structure; prompt only specifies decoration/style changes
    - `guidance` parameter controls style adherence vs structure preservation
 
-### raw/listing.json schema (Schema.org format from scraper)
+### input_data/houses/<slug>/listing.json schema (Schema.org format from scraper)
 ```json
 {
   "@type": ["Appartement", "Product"],
@@ -299,9 +310,9 @@ houses/
     {
       "style_template": "kitchen",             // References pipeline/prompts/kitchen.md
       "room_type": "kitchen",
-      "source_image": "raw/photos/008.jpg",    // Input to FLUX (no copy)
+      "source_image": "input_data/houses/Acacialaan_6/photos/008.jpg",  // Input to FLUX (no copy)
       "confidence": 0.98,
-      "generated_image": "outputs/imagineering/kitchen_008/generated.png"
+      "generated_image": "outputs/houses/Acacialaan_6/imagineering/kitchen_008/generated.png"
     }
   ]
 }
@@ -351,16 +362,6 @@ This keeps frontend types in sync with backend at all times.
 Please write up an ADR under docs/ which is named 00-poetry-vs-uv.md and write up an ADR on which package manager we should use.
 ---
 
-## TODOs: ADRs Needed
-
-| ADR | Question | Options |
-|-----|----------|---------|
-| ADR-001 | Frontend hosting | Azure Static Web Apps vs Container Apps |
-| ADR-002 | Queue service | Azure Storage Queue vs Service Bus |
-| ADR-003 | Python Package Manager | UV vs Poetry |
-| ADR-004 | Observability stack | OpenTelemetry vs Azure App Insights native |
-| ADR-005 | LLM test mocking | VCR-style recording vs static fixtures vs live-skip || ADR-006 | FLUX guidance parameter | Experiment to find optimal value |
-
 ---
 
 ## Experiments Needed
@@ -387,3 +388,6 @@ guidance=50 → Heavy style, may distort structure
 ```
 
 **Output:** Recommended default guidance value + per-room-type adjustments if needed.
+
+# TODO:
+Make sure the structure is aligned with the ADR docs.
