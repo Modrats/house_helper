@@ -147,7 +147,9 @@ class House(BaseModel):
         return self.model_copy(
             update={
                 "filter_results": new_results,
-                "excluded_by": filter_name if not passed and self.excluded_by is None else self.excluded_by,
+                "excluded_by": filter_name
+                if not passed and self.excluded_by is None
+                else self.excluded_by,
             }
         )
 

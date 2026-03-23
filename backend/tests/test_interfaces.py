@@ -1,6 +1,7 @@
 """Unit tests for interfaces (Protocol compliance)."""
 
 import pytest
+
 from src.interfaces.filter import FilterCriteria, IFilter
 from src.models.house import House
 
@@ -78,11 +79,13 @@ class TestIFilterProtocol:
             @property
             def name(self) -> str:
                 return "mock_filter"
-            
+
             def filter(self, houses: list[House], criteria: FilterCriteria) -> list[House]:
                 return houses
-            
-            async def filter_async(self, houses: list[House], criteria: FilterCriteria) -> list[House]:
+
+            async def filter_async(
+                self, houses: list[House], criteria: FilterCriteria
+            ) -> list[House]:
                 return houses
 
         mock = MockFilter()

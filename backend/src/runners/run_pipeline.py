@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Literal
