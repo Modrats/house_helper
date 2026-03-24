@@ -35,3 +35,16 @@
 - Standalone CLI: `python -m src.evaluation.deterministic --house {slug}` — uses `load_storage_paths()` with graceful fallback.
 - Tests: 44 parametrised cases, NamedTuple + `@pytest.mark.parametrize`, zero class-based tests. `tmp_path` fixture for filesystem cases.
 - VCR cassette structure placeholder at `tests/fixtures/cassettes/` — record with `pytest --record-mode=new_episodes` once API keys are available.
+
+### 2026-03-24: Distance calculator service (Issue #11, PR #52)
+
+- **IDistanceCalculator** interface at `interfaces/distance_calculator.py` — ABC with `calculate_distances(slug) -> DistanceResult`.
+- **TravelTime** and **DistanceResult** models at `models/distance.py` — frozen Pydantic BaseModels with `to_summary_dict()` and `to_detailed_dict()`.
+- **GoogleMapsDistanceCalculator** at `services/distance_calculator.py` — calls Google Maps Distance Matrix API via `requests.get`. Uses `_call_distance_api` as the mocking boundary.
+- Address extraction from `listing.txt`: regex patterns for `Address:`, `Adres:`, `Location:` labels, falls back to first non-empty line.
+- Idempotent via `distances.json` + SHA-256 config hash comparison — recalculates only when destinations config changes.
+- **Factory** `create_distance_calculator()` in `core.py` — requires `GOOGLE_MAPS_API_KEY` (no default, fails loudly).
+- **`load_distance_config()`** in `config.py` reads `distance.destinations` from criteria.yaml.
+- Sample destinations (Amsterdam Central, Office) added to `config/criteria.yaml`.
+- Tests: 21 parametrised cases, NamedTuple + `@pytest.mark.parametrize`. Mocks `requests.get` at the service module boundary.
+- `House` model already has `distances: dict[str, int]` and `with_distance()` — ready for pipeline integration.

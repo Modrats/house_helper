@@ -9,8 +9,10 @@ from .house import FilterResult, House, HouseMetadata, HouseStatus
 from .imagineering import ImagineeringPhoto, ImagineeringResult
 from .llm import LLMResponse
 from .room import Photo, Room, RoomType
+from .text_analysis import CriterionResult, TextAnalysis
 
 __all__ = [
+    "CriterionResult",
     "FilterResult",
     "House",
     "HouseClassifications",
@@ -23,4 +25,5 @@ __all__ = [
     "PhotoClassification",
     "Room",
     "RoomType",
+    "TextAnalysis",
 ]
