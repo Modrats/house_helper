@@ -1,0 +1,23 @@
+Edit the input image directly (do NOT recreate or reinterpret the room). Perform a localized furniture-only replacement on top of the existing pixels redecorated according to the instructions below.
+
+ABSOLUTE PRESERVATION — copy these PIXEL-FOR-PIXEL from the input:
+All permanent architectural elements must be copied deterministically from the input pixels without re-rendering or geometric reinterpretation (no diffusion applied to these regions).
+- WINDOWS: exact same shape, size, position, frame style, handles, glass panes, and mullions. Do not reshape, resize, add, or remove any window.
+- DOORS: exact same shape, position, handle style, and frame.
+- WALLS: exact same colour, texture, and position. Do not repaint or retexture.
+- CEILING: exact same colour, texture, beams, or moulding.
+- FLOOR: exact same material, colour, and pattern.
+- RADIATORS & HEATING: exact same style, size, and position.
+- LIGHT FIXTURES: exact same ceiling lights, wall lights, and switches in the same positions.
+- ROOM PROPORTIONS: exact same perspective, camera angle, and field of view.
+
+ITEMS YOU MUST REPLACE / CHANGE (these are NOT permanent fixtures):
+- Beds, bed frames, bed railings, mattresses, bedding, pillows
+- Wardrobes, closets, dressers, shelving units, bookcases
+- Desks, tables, chairs, sofas, armchairs
+- Curtains, blinds (window frame stays, fabric can change)
+- Rugs, lamps (floor/table lamps only — ceiling lights stay), accessories, wall art, plants
+
+Think of it as: remove ONLY movable furniture via inpainting while the architectural background layer remains pixel-locked. Now furnish and decorate it according to the instructions, while the room shell (walls, windows, doors, floor, ceiling, radiators, fixed lights) remains photographically identical to the input.
+
+Reimagine this $room_type with a fresh, modern style. Replace all movable furniture and decor while keeping the room's architectural elements identical. Use a cohesive color palette and contemporary design choices appropriate for a $room_type.

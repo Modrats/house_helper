@@ -184,11 +184,41 @@ make eval
 
 # Run a single component
 make eval COMPONENT=photo_classifier
+
+# From backend/ directly
+uv run python -m src.evaluation.run_evals
+uv run python -m src.evaluation.run_evals --component text_filter
 ```
+
+Results are written to `backend/eval-results/` as JSON files by the `LocalPublisher`.
+
+### GitHub Actions Workflow
+
+Evaluations can be triggered manually via the **Evaluation** workflow (`.github/workflows/eval.yml`). This is a `workflow_dispatch` workflow with three optional inputs:
+
+| Input | Default | Purpose |
+|-------|---------|---------|
+| `component` | *(blank = all)* | Run only a specific evaluator (e.g. `photo_classifier`) |
+| `model_name` | `unknown` | Tag for the model under test (e.g. `gpt-4o`) |
+| `prompt_version` | `unknown` | Tag for the prompt variant (e.g. `v1.2`) |
+
+#### Run Context Logging
+
+Every workflow run begins with a **Log run context** step that prints:
+
+- **Branch** — `github.ref_name` (the branch or tag that triggered the run)
+- **Commit** — `github.sha` (the exact commit being evaluated)
+- **Run ID** — `github.run_id` (unique identifier for this workflow run)
+
+This context appears in the GitHub Actions log for every eval run, making it easy to correlate results back to source code. The evaluator runner also tags published results with `branch_name` from the `BRANCH_NAME` environment variable so that experiment metrics can be filtered by branch.
+
+#### Artifacts
+
+After every run (pass or fail), the workflow uploads `backend/eval-results/` as a GitHub Actions artifact named `eval-results-{run_id}`. Download these from the workflow run's **Artifacts** section in the GitHub UI.
 
 ### CI/CD
 
-Evaluations run automatically on every PR via the CI pipeline. A PR that regresses any success criterion below threshold will fail.
+The CI workflow (`.github/workflows/ci.yml`) runs lint and tests on every push and PR to `main`. The eval workflow is **separate and manual** — it does not block PRs. This separation keeps CI fast while allowing on-demand evaluation runs against any branch or commit.
 
 ---
 
