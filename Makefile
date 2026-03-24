@@ -1,7 +1,8 @@
 .PHONY: help install lint test format clean pre-commit install-hooks \
         install-backend install-frontend lint-backend lint-frontend \
         test-backend test-frontend format-backend format-frontend \
-        dev-backend dev-frontend
+        dev-backend dev-frontend \
+        docker-build docker-up docker-down
 
 # Default target
 help:
@@ -21,6 +22,11 @@ help:
 	@echo "  make dev-backend     Start backend dev server"
 	@echo "  make dev-frontend    Start frontend dev server"
 	@echo "  make clean           Remove all build artifacts"
+	@echo ""
+	@echo "Docker:"
+	@echo "  make docker-build    Build Docker images"
+	@echo "  make docker-up       Start services (detached)"
+	@echo "  make docker-down     Stop services"
 	@echo ""
 	@echo "Individual targets:"
 	@echo "  make {lint,test,format}-{backend,frontend}"
@@ -103,3 +109,19 @@ clean:
 	cd backend && $(MAKE) clean
 	cd frontend && $(MAKE) clean
 	@echo "✅ Cleaned all artifacts"
+
+#------------------------------------------------------------------------------
+# Docker
+#------------------------------------------------------------------------------
+
+docker-build:
+	@echo "🐳 Building Docker images..."
+	docker compose build
+
+docker-up:
+	@echo "🐳 Starting services..."
+	docker compose up -d
+
+docker-down:
+	@echo "🐳 Stopping services..."
+	docker compose down
