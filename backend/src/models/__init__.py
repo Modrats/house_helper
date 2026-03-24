@@ -5,11 +5,13 @@ and focused on data representation.
 """
 
 from .classification import HouseClassifications, PhotoClassification
+from .distance import DistanceResult, TravelTime
 from .house import FilterResult, House, HouseMetadata, HouseStatus
 from .llm import LLMResponse
 from .room import Photo, Room, RoomType
 
 __all__ = [
+    "DistanceResult",
     "FilterResult",
     "House",
     "HouseClassifications",
@@ -20,4 +22,5 @@ __all__ = [
     "PhotoClassification",
     "Room",
     "RoomType",
+    "TravelTime",
 ]

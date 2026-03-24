@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import os
 
-from .config import load_storage_paths
+from .config import load_distance_config, load_storage_paths
 from .interfaces.data_source import IDataSource
+from .interfaces.distance_calculator import IDistanceCalculator
 from .interfaces.room_classifier import IRoomClassifier
 from .services.azure_openai_service import AzureOpenAIService
+from .services.distance_calculator import GoogleMapsDistanceCalculator
 from .services.house_repository import HouseRepository
 from .services.local_storage import LocalStorage
 from .services.room_classifier import AzureOpenAIRoomClassifier
@@ -55,4 +57,30 @@ def create_room_classifier() -> IRoomClassifier:
         input_dir=input_dir,
         output_dir=output_dir,
         batch_size=batch_size,
+    )
+
+
+def create_distance_calculator() -> IDistanceCalculator:
+    """Create a distance calculator wired to Google Maps and storage paths.
+
+    Reads GOOGLE_MAPS_API_KEY from environment. Reads destinations from
+    the distance section of criteria.yaml.
+
+    Returns:
+        A configured IDistanceCalculator implementation.
+
+    Raises:
+        RuntimeError: If GOOGLE_MAPS_API_KEY is not set.
+    """
+    api_key = os.environ.get("GOOGLE_MAPS_API_KEY")
+    if not api_key:
+        raise RuntimeError("Missing required environment variable: GOOGLE_MAPS_API_KEY")
+
+    input_dir, output_dir = load_storage_paths()
+    destinations = load_distance_config()
+    return GoogleMapsDistanceCalculator(
+        api_key=api_key,
+        input_dir=input_dir,
+        output_dir=output_dir,
+        destinations=destinations,
     )

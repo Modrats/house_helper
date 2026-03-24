@@ -5,12 +5,14 @@ Implementations live in services/.
 """
 
 from .data_source import IDataSource
+from .distance_calculator import IDistanceCalculator
 from .filter import IFilter
 from .llm_service import ILLMService
 from .room_classifier import IRoomClassifier
 
 __all__ = [
     "IDataSource",
+    "IDistanceCalculator",
     "IFilter",
     "ILLMService",
     "IRoomClassifier",

@@ -20,3 +20,12 @@ text_filter:
   excluded_keywords:
     - "highway"
     - "industrial"
+
+distance:
+  destinations:
+    - name: "Amsterdam Central"
+      address: "Amsterdam Centraal, Amsterdam"
+      modes: ["transit", "cycling"]
+    - name: "Office"
+      address: "Zuidas, Amsterdam"
+      modes: ["driving", "transit"]

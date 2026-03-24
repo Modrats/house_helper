@@ -55,3 +55,18 @@ def load_storage_paths(
     input_dir = REPO_ROOT / storage["input_dir"]
     output_dir = REPO_ROOT / storage["output_dir"]
     return input_dir, output_dir
+
+
+def load_distance_config(
+    path: Path = DEFAULT_CONFIG_PATH,
+) -> list[dict[str, str | list[str]]]:
+    """Load distance destinations from the distance section of config.
+
+    Returns:
+        List of destination dicts, each with name, address, and modes.
+
+    Raises:
+        KeyError: If the distance section is missing from config.
+    """
+    raw = _load_raw(path)
+    return raw["distance"]["destinations"]
