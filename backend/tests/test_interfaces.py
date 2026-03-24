@@ -4,7 +4,6 @@ from typing import Any, NamedTuple
 
 import pytest
 
-from src.interfaces.data_source import IDataSource
 from src.interfaces.filter import IFilter
 from src.models.house import FilterResult, House
 
@@ -86,36 +85,3 @@ def test_ifilter_complete_implementation(
 ) -> None:
     f = filter_class()
     assert f.name == expected_name
-
-
-# ---------------------------------------------------------------------------
-# Interface type hints
-# ---------------------------------------------------------------------------
-
-
-class TypeHintsCase(NamedTuple):
-    """Test case for interfaces as type hint parameters."""
-
-    description: str
-    expected_callable_count: int
-
-
-TYPE_HINTS_CASES = [
-    TypeHintsCase(
-        description="interfaces can be used as type hints for function parameters",
-        expected_callable_count=2,
-    ),
-]
-
-
-@pytest.mark.parametrize("description, expected_callable_count", TYPE_HINTS_CASES)
-def test_type_hints_work(description: str, expected_callable_count: int) -> None:
-    def accepts_filter(f: IFilter) -> str:
-        return f.name
-
-    def accepts_data_source(ds: IDataSource) -> list:
-        return ds.get_all_houses()
-
-    callables = [accepts_filter, accepts_data_source]
-    assert len(callables) == expected_callable_count
-    assert all(callable(c) for c in callables)
