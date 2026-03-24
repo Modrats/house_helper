@@ -1,51 +1,91 @@
-"""IDataSource abstract base class for storage abstraction.
+"""IDataSource abstract base class — generic storage CRUD.
 
-Allows swapping between local filesystem and Azure Blob/Table Storage
-without changing pipeline code.
+Provides a storage-backend-agnostic interface for reading and writing
+data. Does not know about domain concepts like houses or rooms.
+
+Domain-specific logic belongs in HouseRepository, which wraps IDataSource
+and translates between generic path operations and house-domain queries.
+
+Example implementations:
+    - LocalStorage: Reads/writes on the local filesystem.
+    - AzureStorageService: Reads/writes from Azure Blob + Table Storage.
 """
 
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any
-
-from ..models.house import House
+from pathlib import Path
 
 
 class IDataSource(ABC):
-    """Abstract base class for storage operations.
+    """Generic CRUD interface for the storage backend.
 
-    Abstracts storage backend (local filesystem vs Azure Blob/Table Storage).
-    Implementations handle reading houses and persisting pipeline outputs.
+    All methods operate on opaque paths/keys interpreted by the
+    implementation. LocalStorage treats them as filesystem paths;
+    cloud implementations map them to blob paths or table keys.
 
-    Example implementations:
-        - LocalStorage: Reads from local houses/ folder structure
-        - AzureStorageService: Reads from Azure Blob + Table Storage
+    This interface intentionally has no knowledge of houses, rooms,
+    or pipeline structure — it is pure storage plumbing.
     """
 
     @abstractmethod
-    def load_houses(self, criteria: dict[str, Any]) -> list[House]:
-        """Load all houses, restoring status from existing outputs.
+    def read_json(self, path: str | Path) -> dict:
+        """Read and parse a JSON file from storage.
 
         Args:
-            criteria: Current filter criteria from config, used to detect drift.
+            path: Storage path or key.
 
         Returns:
-            List of houses with status restored from any prior outputs.
+            Parsed JSON as a dict.
+
+        Raises:
+            FileNotFoundError: If the path does not exist.
         """
 
     @abstractmethod
-    def save_filter_results(self, houses: list[House]) -> None:
-        """Write filter results for each house.
+    def write_json(self, path: str | Path, data: dict) -> None:
+        """Write a dict as JSON to storage.
+
+        Parent directories (or equivalent) are created automatically.
 
         Args:
-            houses: Houses with filter_results populated by the pipeline.
+            path: Storage path or key.
+            data: Data to serialise and write.
         """
 
-    async def get_all_houses_async(self) -> list[House]:
-        """Async version of get_all_houses.
+    @abstractmethod
+    def list_keys(self, prefix: str | Path) -> list[str]:
+        """List keys (paths) directly under a given prefix.
+
+        Args:
+            prefix: Directory or key prefix to list.
 
         Returns:
-            List of all houses with metadata.
+            Sorted list of key strings under the prefix.
+            Empty list if the prefix does not exist.
         """
-        ...
+
+    @abstractmethod
+    def read_bytes(self, path: str | Path) -> bytes:
+        """Read raw bytes from storage.
+
+        Args:
+            path: Storage path or key.
+
+        Returns:
+            Raw bytes content.
+
+        Raises:
+            FileNotFoundError: If the path does not exist.
+        """
+
+    @abstractmethod
+    def exists(self, path: str | Path) -> bool:
+        """Check whether a path/key exists in storage.
+
+        Args:
+            path: Storage path or key.
+
+        Returns:
+            True if the path exists, False otherwise.
+        """

@@ -1,0 +1,16 @@
+{
+  "guidance_values": [5, 10, 15, 20, 30, 50],
+  "seed": 42,
+  "_prompt_note": "The system_prompt prefix is prepended to every room prompt. It locks walls, windows, floors, etc. and only allows movable furniture to change. Source: old/house_helper/src/house_helper/agents/imagineering_agent.py",
+  "system_prompt": "Edit the input image directly (do NOT recreate or reinterpret the room). Perform a localized furniture-only replacement on top of the existing pixels redecorated according to the instructions below.\n\nABSOLUTE PRESERVATION — copy these PIXEL-FOR-PIXEL from the input:\nAll permanent architectural elements must be copied deterministically from the input pixels without re-rendering or geometric reinterpretation (no diffusion applied to these regions).\n- WINDOWS: exact same shape, size, position, frame style, handles, glass panes, and mullions. Do not reshape, resize, add, or remove any window.\n- DOORS: exact same shape, position, handle style, and frame.\n- WALLS: exact same colour, texture, and position. Do not repaint or retexture.\n- CEILING: exact same colour, texture, beams, or moulding.\n- FLOOR: exact same material, colour, and pattern.\n- RADIATORS & HEATING: exact same style, size, and position.\n- LIGHT FIXTURES: exact same ceiling lights, wall lights, and switches in the same positions.\n- ROOM PROPORTIONS: exact same perspective, camera angle, and field of view.\n\nITEMS YOU MUST REPLACE / CHANGE (these are NOT permanent fixtures):\n- Beds, bed frames, bed railings, mattresses, bedding, pillows\n- Wardrobes, closets, dressers, shelving units, bookcases\n- Desks, tables, chairs, sofas, armchairs\n- Curtains, blinds (window frame stays, fabric can change)\n- Rugs, lamps (floor/table lamps only — ceiling lights stay), accessories, wall art, plants\n\nThink of it as: remove ONLY movable furniture via inpainting while the architectural background layer remains pixel-locked. Now furnish and decorate it according to the instructions, while the room shell (walls, windows, doors, floor, ceiling, radiators, fixed lights) remains photographically identical to the input.\n\nDecorating instructions:\n",
+  "rooms": {
+    "kitchen": {
+      "photo": "input_data/houses/ikea_showroom/photos/052b2a2e-6694-41d4-8b0c-d3bf5485fd1c.jpeg",
+      "prompt": "Please reimagine this room as a pastel themed sweet heaven kitchen crossed with a flavor laboratory with baking supplies all over the place, there is a rail with pastel cooking utensils in pastel purple, blue, orange, pink. Color coded jars in pastel colors and many decorated cakes and decorations. There is a kitchen island which holds all manner of baked goods. Themed a little bit like a sweets laboratory inspiring creativity and whimsy."
+    },
+    "living_room": {
+      "photo": "input_data/houses/ikea_showroom/photos/9563c53b-4725-4e8a-92f1-3bdeb6dcbf9d.jpeg",
+      "prompt": "Please reimagine this room as a gamer's paradise, there are board games lying on tables where table top games like dungeons and dragons are left mid-game to serve as decoration. There is a large three seater couch with a chaise lounge, a cat tree and cozy cat blankets on the couch. There is a large tv on the wall."
+    }
+  }
+}
