@@ -64,3 +64,23 @@ jobs:
 
       - name: Test
         run: make test
+
+  pip-audit:
+    name: Security (pip-audit)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Export requirements
+        run: uv export --no-dev --format requirements-txt -o requirements.txt
+
+      - uses: pypa/gh-action-pip-audit@v1.1.0
+        with:
+          inputs: backend/requirements.txt
