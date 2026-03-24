@@ -1,6 +1,6 @@
 """Unit tests for the filter pipeline runner."""
 
-from typing import Any
+from typing import Any, NamedTuple
 
 import pytest
 
@@ -50,48 +50,98 @@ class PriceFilter(IFilter):
         return results
 
 
-class TestFilterPipeline:
-    """Tests for FilterPipeline."""
+SAMPLE_HOUSES = [
+    House(slug="house-1", metadata=HouseMetadata(price=300000)),
+    House(slug="house-2", metadata=HouseMetadata(price=450000)),
+    House(slug="house-3", metadata=HouseMetadata(price=600000)),
+]
 
-    @pytest.fixture
-    def sample_houses(self) -> list[House]:
-        """Create sample houses for testing."""
-        return [
-            House(slug="house-1", metadata=HouseMetadata(price=300000)),
-            House(slug="house-2", metadata=HouseMetadata(price=450000)),
-            House(slug="house-3", metadata=HouseMetadata(price=600000)),
-        ]
 
-    def test_empty_pipeline(self, sample_houses):
-        """Pipeline with no filters passes all houses."""
-        pipeline = FilterPipeline()
-        result = pipeline.run(sample_houses, {})
-        assert len(result) == 3
+# ---------------------------------------------------------------------------
+# Pipeline run behaviour
+# ---------------------------------------------------------------------------
 
-    def test_add_and_run_filter(self, sample_houses):
-        """Filters are applied correctly."""
-        pipeline = FilterPipeline()
-        pipeline.add_filter(PassAllFilter())
-        result = pipeline.run(sample_houses, {})
-        assert len(result) == 3
 
-    def test_chained_filters(self, sample_houses):
-        """Multiple filters chain correctly."""
-        pipeline = FilterPipeline()
-        pipeline.add_filter(PassAllFilter())
-        pipeline.add_filter(PriceFilter())
+class PipelineRunCase(NamedTuple):
+    """Test case for FilterPipeline.run() output size."""
 
-        result = pipeline.run(sample_houses, {"max_price": 400000})
-        assert len(result) == 1  # Only house-1 at 300k
+    description: str
+    filters: list
+    houses: list
+    criteria: dict
+    expected_count: int
 
-    def test_reject_all_filter(self, sample_houses):
-        """RejectAll filter excludes all houses."""
-        pipeline = FilterPipeline()
-        pipeline.add_filter(RejectAllFilter())
-        result = pipeline.run(sample_houses, {})
-        assert len(result) == 0
 
-    def test_method_chaining(self):
-        """Pipeline methods support chaining."""
-        pipeline = FilterPipeline().add_filter(PassAllFilter()).add_filter(PriceFilter())
-        assert len(pipeline.filters) == 2
+PIPELINE_RUN_CASES = [
+    PipelineRunCase(
+        description="empty pipeline with no filters passes all houses",
+        filters=[],
+        houses=SAMPLE_HOUSES,
+        criteria={},
+        expected_count=3,
+    ),
+    PipelineRunCase(
+        description="pass-all filter passes every house unchanged",
+        filters=[PassAllFilter()],
+        houses=SAMPLE_HOUSES,
+        criteria={},
+        expected_count=3,
+    ),
+    PipelineRunCase(
+        description="chained pass-all and price filter with max 400k keeps only house-1",
+        filters=[PassAllFilter(), PriceFilter()],
+        houses=SAMPLE_HOUSES,
+        criteria={"max_price": 400000},
+        expected_count=1,
+    ),
+    PipelineRunCase(
+        description="reject-all filter excludes every house",
+        filters=[RejectAllFilter()],
+        houses=SAMPLE_HOUSES,
+        criteria={},
+        expected_count=0,
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    "description, filters, houses, criteria, expected_count", PIPELINE_RUN_CASES
+)
+def test_pipeline_run(
+    description: str,
+    filters: list,
+    houses: list,
+    criteria: dict,
+    expected_count: int,
+) -> None:
+    pipeline = FilterPipeline()
+    for f in filters:
+        pipeline.add_filter(f)
+    result = pipeline.run(houses, criteria)
+    assert len(result) == expected_count
+
+
+# ---------------------------------------------------------------------------
+# Pipeline method chaining
+# ---------------------------------------------------------------------------
+
+
+class PipelineChainCase(NamedTuple):
+    """Test case for FilterPipeline method chaining."""
+
+    description: str
+    expected_filter_count: int
+
+
+PIPELINE_CHAIN_CASES = [
+    PipelineChainCase(
+        description="chained add_filter calls accumulate filters in the pipeline",
+        expected_filter_count=2,
+    ),
+]
+
+
+@pytest.mark.parametrize("description, expected_filter_count", PIPELINE_CHAIN_CASES)
+def test_pipeline_method_chaining(description: str, expected_filter_count: int) -> None:
+    pipeline = FilterPipeline().add_filter(PassAllFilter()).add_filter(PriceFilter())
+    assert len(pipeline.filters) == expected_filter_count
