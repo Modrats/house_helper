@@ -1,0 +1,36 @@
+{
+  "agents": {
+    "gustave": {
+      "persistent_name": "Gustave",
+      "universe": "The Grand Budapest Hotel",
+      "role": "Lead / Architect",
+      "created_at": "2026-03-23T19:25:27Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "zero": {
+      "persistent_name": "Zero",
+      "universe": "The Grand Budapest Hotel",
+      "role": "Backend Dev",
+      "created_at": "2026-03-23T19:25:27Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "agatha": {
+      "persistent_name": "Agatha",
+      "universe": "The Grand Budapest Hotel",
+      "role": "Frontend Dev",
+      "created_at": "2026-03-23T19:25:27Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "kovacs": {
+      "persistent_name": "Kovacs",
+      "universe": "The Grand Budapest Hotel",
+      "role": "Tester / QA",
+      "created_at": "2026-03-23T19:25:27Z",
+      "legacy_named": false,
+      "status": "active"
+    }
+  }
+}
