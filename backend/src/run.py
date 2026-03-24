@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 
-from src.config import load_criteria
+from src.config import ConfigLoader
 from src.core import create_repository
 from src.filters.text_filter import TextFilter
 from src.models.house import HouseStatus
@@ -26,7 +26,7 @@ def _status_at_least(current: HouseStatus, minimum: HouseStatus) -> bool:
 
 
 def main() -> None:
-    criteria = load_criteria()
+    criteria = ConfigLoader().criteria()
     storage = create_repository()
 
     all_houses = storage.load_houses(criteria)
