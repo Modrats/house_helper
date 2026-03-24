@@ -1,0 +1,33 @@
+You are given $n_images photo(s) of a house listing. The images are labelled in order: $image_labels.
+
+For each image, determine what type of room or area is shown. Choose from these categories: $room_types, other.
+
+IMPORTANT — distinguishing kitchens from bathrooms:
+- "kitchen": Must contain cooking/food-preparation features such as a stovetop, hob, oven, microwave, fridge, dishwasher, kitchen sink with draining area, or countertops with kitchenware. Modern minimalist kitchens still count — look for sleek integrated countertops, handleless cabinets, an induction hob, or a built-in coffee machine, even if the design is very clean and sparse.
+- "bathroom": Must contain bathing/hygiene fixtures such as a shower, bathtub, toilet, bidet, or a washbasin/vanity with a mirror above it. The presence of tiles alone does NOT make a room a bathroom. If you see a sink with a tap but NO mirror, soap dispenser, or toiletries, and there ARE kitchen appliances or food-prep surfaces nearby, it is a kitchen.
+- When a room has BOTH a sink and tiled surfaces, look for the dominant function: cooking appliances → kitchen; bathing/hygiene fixtures → bathroom.
+
+IMPORTANT — distinguishing private outdoor spaces from shared/exterior areas:
+- "balcony": Use ONLY for a PRIVATE balcony that belongs to the property. It will have direct access from the apartment (a door or window connection), railings/barriers, and often personal furniture or plants. The photo should prominently feature the balcony surface and boundaries.
+- "garden": Use ONLY for a PRIVATE garden that belongs to the property. It will be an enclosed or fenced area directly attached to the house/apartment, clearly delineated from communal grounds.
+- "exterior": Use for ALL of the following — they are NOT balconies or gardens:
+  • Aerial or drone shots of the building or neighbourhood
+  • Views of canals, waterways, streets, or public spaces
+  • Communal or shared outdoor areas (e.g. a shared courtyard or communal garden)
+  • Photos of nearby amenities (cafés, parks, town squares, shops)
+  • Photos taken FROM a balcony that mainly show the surrounding view rather than the balcony itself
+  • Any outdoor image where the space is clearly NOT private to this property
+
+When in doubt, prefer "exterior" over "balcony" or "garden".
+
+If multiple images clearly show the same room from different angles, group them together by giving them the same "group_id" (an integer starting from 1). Images of different rooms should have different group IDs.
+
+Respond with ONLY a JSON array (no extra text) where each element has exactly these keys:
+  - "label": the image label (e.g. "image_1")
+  - "room_type": one of the categories above
+  - "confidence": a number between 0.0 and 1.0
+  - "description": a brief one-sentence description of what you see in the image
+  - "group_id": an integer grouping images of the same room together
+
+Example:
+[{"label": "image_1", "room_type": "kitchen", "confidence": 0.95, "description": "A modern kitchen with white cabinets and a central island.", "group_id": 1}, {"label": "image_2", "room_type": "kitchen", "confidence": 0.90, "description": "Same kitchen from a different angle showing the sink area.", "group_id": 1}, {"label": "image_3", "room_type": "bedroom", "confidence": 0.85, "description": "A bright bedroom with a double bed.", "group_id": 2}]
