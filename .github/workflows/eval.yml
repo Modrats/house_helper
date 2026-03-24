@@ -1,0 +1,57 @@
+name: Evaluation
+
+on:
+  workflow_dispatch:
+    inputs:
+      component:
+        description: 'Component to evaluate (leave blank for all)'
+        required: false
+        default: ''
+      model_name:
+        description: 'Model name tag for this run (e.g. gpt-4o)'
+        required: false
+        default: 'unknown'
+      prompt_version:
+        description: 'Prompt version tag for this run (e.g. v1.2)'
+        required: false
+        default: 'unknown'
+
+jobs:
+  eval:
+    name: Run evaluators
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install dependencies
+        run: make install
+
+      - name: Run evaluators
+        run: |
+          if [ -n "${{ inputs.component }}" ]; then
+            make eval COMPONENT=${{ inputs.component }}
+          else
+            make eval
+        env:
+          MODEL_NAME: ${{ inputs.model_name }}
+          PROMPT_VERSION: ${{ inputs.prompt_version }}
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-results-${{ github.run_id }}
+          path: backend/eval-results/
+          if-no-files-found: ignore
