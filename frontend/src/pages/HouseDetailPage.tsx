@@ -30,7 +30,7 @@ export function HouseDetailPage(): ReactNode {
       <nav className="breadcrumb" aria-label="Breadcrumb">
         <Link to="/">Houses</Link>
         <span aria-hidden="true"> / </span>
-        <span aria-current="page">{house ? formatAddress(house) : `House ${houseId}`}</span>
+        <span aria-current="page">{house?.address ? formatAddress(house) : `House ${houseId}`}</span>
       </nav>
 
       <h2>House Details</h2>
@@ -58,7 +58,7 @@ export function HouseDetailPage(): ReactNode {
         </div>
       )}
 
-      {house && (
+      {house?.id && (
         <article className="house-detail">
           {/* Screenshot */}
           <div className="house-detail__screenshot">
