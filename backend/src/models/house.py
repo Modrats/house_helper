@@ -15,13 +15,62 @@ from .room import Photo, Room, RoomType
 
 
 class HouseStatus(str, Enum):
-    """Processing status of a house in the pipeline."""
+    """Processing status of a house in the pipeline.
+
+    Stages are ordered: each downstream stage can resume from
+    the highest completed status.
+    """
 
     RAW = "raw"  # Just scraped, no processing
+    FILTERED = "filtered"  # Text/criteria filters applied
     CLASSIFIED = "classified"  # Photos classified into rooms
     EVALUATED = "evaluated"  # Criteria checked
     IMAGINEERED = "imagineered"  # AI images generated
     COMPLETE = "complete"  # All processing done
+
+
+class FilterResult(BaseModel):
+    """Per-criterion filter results organized by priority.
+
+    p1: Must-have criteria — ALL must be True for the house to pass.
+    p2: Nice-to-have criteria — at least ONE must be True (if any exist).
+    excluded: Dealbreaker criteria — ALL must be False to pass.
+    """
+
+    p1: dict[str, bool] = Field(
+        default_factory=dict,
+        description="Must-have criteria (ALL must be True)",
+    )
+    p2: dict[str, bool] = Field(
+        default_factory=dict,
+        description="Nice-to-have criteria (at least ONE must be True)",
+    )
+    excluded: dict[str, bool] = Field(
+        default_factory=dict,
+        description="Dealbreaker criteria (ALL must be False)",
+    )
+
+    model_config = {"frozen": True}
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def passed(self) -> bool:
+        """True when all p1 match, at least one p2 matches, and no excluded match."""
+        if any(self.excluded.values()):
+            return False
+        if self.p1 and not all(self.p1.values()):
+            return False
+        if self.p2 and not any(self.p2.values()):
+            return False
+        return True
+
+    def merge(self, other: FilterResult) -> FilterResult:
+        """Return a new FilterResult combining criteria from both."""
+        return FilterResult(
+            p1={**self.p1, **other.p1},
+            p2={**self.p2, **other.p2},
+            excluded={**self.excluded, **other.excluded},
+        )
 
 
 class HouseMetadata(BaseModel):
@@ -78,9 +127,9 @@ class House(BaseModel):
     )
 
     # Filtering results
-    filter_results: dict[str, bool] = Field(
-        default_factory=dict,
-        description="Results from each filter (filter_name -> passed)",
+    filter_results: FilterResult = Field(
+        default_factory=FilterResult,
+        description="Per-criterion filter results organized by priority",
     )
     # Distance calculation results (destination -> minutes)
     distances: dict[str, int] = Field(
@@ -120,10 +169,10 @@ class House(BaseModel):
         """Whether a balcony was detected."""
         return any(room.room_type == RoomType.BALCONY for room in self.rooms)
 
-    def with_filter_result(self, filter_name: str, passed: bool) -> House:
-        """Return a new House with an additional filter result."""
-        new_results = {**self.filter_results, filter_name: passed}
-        return self.model_copy(update={"filter_results": new_results})
+    def with_filter_result(self, result: FilterResult) -> House:
+        """Return a new House with merged filter results."""
+        merged = self.filter_results.merge(result)
+        return self.model_copy(update={"filter_results": merged})
 
     def with_distance(self, destination: str, minutes: int) -> House:
         """Return a new House with an additional distance entry."""

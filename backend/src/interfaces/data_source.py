@@ -1,4 +1,4 @@
-"""IDataSource protocol for storage abstraction.
+"""IDataSource abstract base class for storage abstraction.
 
 Allows swapping between local filesystem and Azure Blob/Table Storage
 without changing pipeline code.
@@ -6,78 +6,41 @@ without changing pipeline code.
 
 from __future__ import annotations
 
-from pathlib import Path
-from typing import Protocol
+from abc import ABC, abstractmethod
+from typing import Any
 
 from ..models.house import House
 
 
-class IDataSource(Protocol):
-    """Protocol for data source operations.
+class IDataSource(ABC):
+    """Abstract base class for storage operations.
 
     Abstracts storage backend (local filesystem vs Azure Blob/Table Storage).
-    Implementations should handle reading houses, photos, and metadata.
+    Implementations handle reading houses and persisting pipeline outputs.
 
     Example implementations:
-        - LocalStorageService: Reads from local houses/ folder structure
+        - LocalStorage: Reads from local houses/ folder structure
         - AzureStorageService: Reads from Azure Blob + Table Storage
     """
 
-    def get_house(self, slug: str) -> House:
-        """Load a house by its slug.
+    @abstractmethod
+    def load_houses(self, criteria: dict[str, Any]) -> list[House]:
+        """Load all houses, restoring status from existing outputs.
 
         Args:
-            slug: Unique identifier for the house (folder name).
+            criteria: Current filter criteria from config, used to detect drift.
 
         Returns:
-            House model with all metadata loaded.
-
-        Raises:
-            HouseNotFoundError: If the house doesn't exist.
+            List of houses with status restored from any prior outputs.
         """
-        ...
 
-    def get_all_houses(self) -> list[House]:
-        """Load all houses from the data source.
-
-        Returns:
-            List of all houses with metadata.
-        """
-        ...
-
-    def get_photo_path(self, slug: str, photo_name: str) -> Path:
-        """Get the path to a specific photo.
+    @abstractmethod
+    def save_filter_results(self, houses: list[House]) -> None:
+        """Write filter results for each house.
 
         Args:
-            slug: House slug identifier.
-            photo_name: Name of the photo file.
-
-        Returns:
-            Path to the photo (local path or temp file for Azure).
+            houses: Houses with filter_results populated by the pipeline.
         """
-        ...
-
-    def get_listing_text(self, slug: str) -> str:
-        """Get the listing text for a house.
-
-        Args:
-            slug: House slug identifier.
-
-        Returns:
-            Full text of the listing description.
-        """
-        ...
-
-    async def get_house_async(self, slug: str) -> House:
-        """Async version of get_house for parallel loading.
-
-        Args:
-            slug: Unique identifier for the house.
-
-        Returns:
-            House model with all metadata loaded.
-        """
-        ...
 
     async def get_all_houses_async(self) -> list[House]:
         """Async version of get_all_houses.

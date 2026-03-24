@@ -1,53 +1,48 @@
 """Tests for FilterPipeline basic functionality.
 
 Tests pipeline operations with proper filter implementations
-to ensure normal usage works correctly. Static type checking
-(mypy/pyright) handles interface validation.
+to ensure normal usage works correctly.
 """
 
 from typing import Any
 
-from src.models.house import House
+from src.interfaces.filter import IFilter
+from src.models.house import FilterResult, House
 from src.runners.run_pipeline import FilterPipeline
 
 
-class SimpleFilter:
+class SimpleFilter(IFilter):
     """A simple filter for testing."""
 
     @property
     def name(self) -> str:
         return "simple_filter"
 
-    def filter(self, houses: list[House], criteria: dict[str, Any]) -> list[House]:
-        """Return houses with more than 2 bedrooms."""
-        return [h for h in houses if h.bedroom_count > 2]
-
-    async def filter_async(self, houses: list[House], criteria: dict[str, Any]) -> list[House]:
-        return self.filter(houses, criteria)
+    def filter(self, houses: list[House], criteria: dict[str, Any]) -> dict[str, FilterResult]:
+        """Return pass for houses with more than 2 bedrooms."""
+        return {h.slug: FilterResult(p1={"bedrooms_gt_2": h.bedroom_count > 2}) for h in houses}
 
 
-class KeywordFilter:
+class KeywordFilter(IFilter):
     """Filter houses by keywords in listing text."""
 
     @property
     def name(self) -> str:
         return "keyword_filter"
 
-    def filter(self, houses: list[House], criteria: dict[str, Any]) -> list[House]:
+    def filter(self, houses: list[House], criteria: dict[str, Any]) -> dict[str, FilterResult]:
         """Filter by required keywords."""
         must_have = criteria.get("must_have_keywords", [])
         if not must_have:
-            return houses
+            return {h.slug: FilterResult() for h in houses}
 
-        results = []
+        results: dict[str, FilterResult] = {}
         for house in houses:
             listing_text = (house.listing_text or "").lower()
-            if all(kw.lower() in listing_text for kw in must_have):
-                results.append(house)
+            results[house.slug] = FilterResult(
+                p1={kw: kw.lower() in listing_text for kw in must_have}
+            )
         return results
-
-    async def filter_async(self, houses: list[House], criteria: dict[str, Any]) -> list[House]:
-        return self.filter(houses, criteria)
 
 
 class TestFilterPipeline:
@@ -78,22 +73,20 @@ class TestFilterPipeline:
         pipeline = FilterPipeline()
 
         # Add filters with distinguishable names
-        class FilterA:
-            name = "filter_a"
+        class FilterA(IFilter):
+            @property
+            def name(self):
+                return "filter_a"
 
             def filter(self, houses, criteria):
                 return houses
 
-            async def filter_async(self, houses, criteria):
-                return houses
-
-        class FilterB:
-            name = "filter_b"
+        class FilterB(IFilter):
+            @property
+            def name(self):
+                return "filter_b"
 
             def filter(self, houses, criteria):
-                return houses
-
-            async def filter_async(self, houses, criteria):
                 return houses
 
         pipeline.add_filter(FilterA()).add_filter(FilterB())

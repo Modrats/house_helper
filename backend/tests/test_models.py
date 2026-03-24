@@ -2,7 +2,7 @@
 
 import pytest
 
-from src.models.house import House, HouseMetadata, HouseStatus
+from src.models.house import FilterResult, House, HouseMetadata, HouseStatus
 from src.models.room import Photo, Room, RoomType
 
 
@@ -150,12 +150,14 @@ class TestHouse:
         """House tracks filter results correctly."""
         house = House(slug="test-house")
 
-        house2 = house.with_filter_result("text_filter", True)
-        assert house2.filter_results["text_filter"] is True
+        result1 = FilterResult(p1={"garden": True})
+        house2 = house.with_filter_result(result1)
+        assert house2.filter_results.p1["garden"] is True
 
-        house3 = house2.with_filter_result("room_filter", False)
-        assert house3.filter_results["room_filter"] is False
-        assert house3.filter_results["text_filter"] is True
+        result2 = FilterResult(p2={"garage": False})
+        house3 = house2.with_filter_result(result2)
+        assert house3.filter_results.p2["garage"] is False
+        assert house3.filter_results.p1["garden"] is True
 
     def test_house_immutability(self):
         """House is immutable - updates return new instances."""
@@ -168,6 +170,6 @@ class TestHouse:
 
     def test_house_status_values(self):
         """All expected statuses exist."""
-        expected = {"raw", "classified", "evaluated", "imagineered", "complete"}
+        expected = {"raw", "filtered", "classified", "evaluated", "imagineered", "complete"}
         actual = {s.value for s in HouseStatus}
         assert expected == actual

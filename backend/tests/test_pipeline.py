@@ -4,53 +4,50 @@ from typing import Any
 
 import pytest
 
-from src.models.house import House, HouseMetadata
+from src.interfaces.filter import IFilter
+from src.models.house import FilterResult, House, HouseMetadata
 from src.runners.run_pipeline import FilterPipeline
 
 
-class PassAllFilter:
+class PassAllFilter(IFilter):
     """Filter that passes all houses (for testing)."""
 
     @property
     def name(self) -> str:
         return "pass_all"
 
-    def filter(self, houses: list[House], criteria: dict[str, Any]) -> list[House]:
-        return houses
-
-    async def filter_async(self, houses: list[House], criteria: dict[str, Any]) -> list[House]:
-        return self.filter(houses, criteria)
+    def filter(self, houses: list[House], criteria: dict[str, Any]) -> dict[str, FilterResult]:
+        return {h.slug: FilterResult() for h in houses}
 
 
-class RejectAllFilter:
+class RejectAllFilter(IFilter):
     """Filter that rejects all houses (for testing)."""
 
     @property
     def name(self) -> str:
         return "reject_all"
 
-    def filter(self, houses: list[House], criteria: dict[str, Any]) -> list[House]:
-        return []
-
-    async def filter_async(self, houses: list[House], criteria: dict[str, Any]) -> list[House]:
-        return []
+    def filter(self, houses: list[House], criteria: dict[str, Any]) -> dict[str, FilterResult]:
+        return {h.slug: FilterResult(p1={"required": False}) for h in houses}
 
 
-class PriceFilter:
+class PriceFilter(IFilter):
     """Filter houses by max price (for testing)."""
 
     @property
     def name(self) -> str:
         return "price_filter"
 
-    def filter(self, houses: list[House], criteria: dict[str, Any]) -> list[House]:
+    def filter(self, houses: list[House], criteria: dict[str, Any]) -> dict[str, FilterResult]:
         max_price = criteria.get("max_price")
-        if max_price is None:
-            return houses
-        return [h for h in houses if h.metadata.price is not None and h.metadata.price <= max_price]
-
-    async def filter_async(self, houses: list[House], criteria: dict[str, Any]) -> list[House]:
-        return self.filter(houses, criteria)
+        results: dict[str, FilterResult] = {}
+        for h in houses:
+            if max_price is None:
+                results[h.slug] = FilterResult()
+            else:
+                passed = h.metadata.price is not None and h.metadata.price <= max_price
+                results[h.slug] = FilterResult(p1={"max_price": passed})
+        return results
 
 
 class TestFilterPipeline:
@@ -98,23 +95,3 @@ class TestFilterPipeline:
         """Pipeline methods support chaining."""
         pipeline = FilterPipeline().add_filter(PassAllFilter()).add_filter(PriceFilter())
         assert len(pipeline.filters) == 2
-
-
-@pytest.mark.asyncio
-class TestFilterPipelineAsync:
-    """Async tests for FilterPipeline."""
-
-    @pytest.fixture
-    def sample_houses(self) -> list[House]:
-        """Create sample houses for testing."""
-        return [
-            House(slug="house-1", metadata=HouseMetadata(price=300000)),
-            House(slug="house-2", metadata=HouseMetadata(price=450000)),
-        ]
-
-    async def test_async_pipeline(self, sample_houses):
-        """Async pipeline runs correctly."""
-        pipeline = FilterPipeline()
-        pipeline.add_filter(PassAllFilter())
-        result = await pipeline.run_async(sample_houses, {})
-        assert len(result) == 2
