@@ -7,7 +7,6 @@ import pytest
 from src.models.house import FilterResult, House, HouseMetadata, HouseStatus
 from src.models.room import Photo, Room, RoomType
 
-
 # ---------------------------------------------------------------------------
 # Photo — creation
 # ---------------------------------------------------------------------------
@@ -48,7 +47,8 @@ PHOTO_CREATION_CASES = [
 
 
 @pytest.mark.parametrize(
-    "description, filename, path, room_type, confidence, detected_features, expected_imagineered_path",
+    "description, filename, path, room_type, confidence, "
+    "detected_features, expected_imagineered_path",
     PHOTO_CREATION_CASES,
 )
 def test_photo_creation(
@@ -390,7 +390,8 @@ HOUSE_WITH_ROOMS_CASES = [
 
 
 @pytest.mark.parametrize(
-    "description, rooms, expected_room_count, expected_bedroom_count, expected_has_garden, expected_has_balcony",
+    "description, rooms, expected_room_count, expected_bedroom_count, "
+    "expected_has_garden, expected_has_balcony",
     HOUSE_WITH_ROOMS_CASES,
 )
 def test_house_with_rooms(
