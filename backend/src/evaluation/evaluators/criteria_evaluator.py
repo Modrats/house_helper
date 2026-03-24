@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 from ..eval_config import load_thresholds
 from ..interfaces import IEvaluator
-from ..metrics import EvaluationReport, MetricResult, compute_accuracy, compute_fnr
+from ..metrics import AccuracyMetric, EvaluationReport, MetricResult, compute_fnr
 from ..models import CriteriaEvaluationSample
 
 
@@ -13,7 +13,7 @@ class CriteriaEvaluator(IEvaluator):
     def name(self) -> str:
         return "criteria_evaluator"
 
-    def evaluate(  # type: ignore[override]  # extra kwargs beyond base signature
+    def evaluate(
         self,
         samples: list[CriteriaEvaluationSample],
         actual: list[dict[str, bool]],
@@ -38,11 +38,10 @@ class CriteriaEvaluator(IEvaluator):
                     if not actual_val:
                         false_negatives += 1
 
-        accuracy = compute_accuracy(correct_keys, total_keys)
         fnr = compute_fnr(false_negatives, should_be_true)
 
         metrics: list[MetricResult] = [
-            MetricResult(name="accuracy", value=accuracy, unit="ratio"),
+            AccuracyMetric(correct=correct_keys, total=total_keys),
             MetricResult(name="false_negative_rate", value=fnr, unit="ratio"),
             MetricResult(name="latency", value=latency_seconds, unit="seconds"),
             MetricResult(name="cost_usd", value=cost_usd, unit="usd"),

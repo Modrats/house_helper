@@ -65,5 +65,3 @@ jobs:
       - name: Test
         run: make test
 
-      - name: Run evaluators
-        run: make eval

@@ -13,7 +13,7 @@ class ImagineeeringEvaluator(IEvaluator):
     def name(self) -> str:
         return "imagineering"
 
-    def evaluate(  # type: ignore[override]  # extra kwargs beyond base signature
+    def evaluate(
         self,
         samples: list[ImagineeredSample],
         judge_score: float,

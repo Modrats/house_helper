@@ -12,7 +12,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, Field, computed_field, model_validator
+from pydantic import BaseModel, Field, computed_field, field_validator, model_validator
 
 # ---------------------------------------------------------------------------
 # Standalone stat functions
@@ -114,7 +114,7 @@ class AccuracyMetric(MetricResult):
     recall: float | None = Field(default=None, ge=0.0, le=1.0)
     f1: float | None = Field(default=None, ge=0.0, le=1.0)
 
-    @computed_field  # type: ignore[prop-decorator]  # Pydantic v2: @computed_field on @property needs this ignore
+    @computed_field  # type: ignore[prop-decorator]  # Pydantic v2: @computed_field requires @property to be decorated first; mypy does not understand this pattern
     @property
     def accuracy(self) -> float:
         """Fraction of samples correctly predicted."""
@@ -140,6 +140,21 @@ class LLMJudgeMetric(MetricResult):
     reason: str = Field(description="Judge's reasoning before the score is assigned")
     score: float = Field(ge=1.0, le=5.0, description="Score (1=poor, 5=excellent)")
 
+    @field_validator("reason")
+    @classmethod
+    def _reason_not_empty(cls, v: str) -> str:
+        """Enforce that reason is non-empty.
+
+        LLM prompts must extract the reason (chain-of-thought) BEFORE the
+        numeric score so the reasoning is captured prior to scoring.
+        """
+        if not v.strip():
+            raise ValueError(
+                "LLMJudgeMetric.reason must not be empty — "
+                "extract reason from the LLM response before score"
+            )
+        return v
+
     @model_validator(mode="before")
     @classmethod
     def _set_value(cls, data: dict) -> dict:
@@ -155,8 +170,9 @@ class LLMJudgeMetric(MetricResult):
 # ---------------------------------------------------------------------------
 
 #: Metric names where lower is better — pass when value <= threshold.
-_LOWER_IS_BETTER = frozenset({"latency", "latency_seconds", "cost", "cost_usd",
-                               "false_negative_rate"})
+_LOWER_IS_BETTER = frozenset(
+    {"latency", "latency_seconds", "cost", "cost_usd", "false_negative_rate"}
+)
 
 
 class EvaluationReport(BaseModel):
@@ -192,8 +208,3 @@ class EvaluationReport(BaseModel):
             else:
                 result[metric_name] = m.value >= threshold
         return result
-
-    @property
-    def passed(self) -> bool:
-        """True when the report has no metrics — placeholder until check_thresholds is called."""
-        return not self.metrics or True

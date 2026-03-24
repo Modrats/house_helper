@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -23,11 +24,11 @@ from .models import (
 )
 from .publisher_interface import IMetricsPublisher
 
-FIXTURES_DIR = Path(__file__).parent.parent.parent / "tests" / "ground_truth"
+FIXTURES_DIR = Path(__file__).parent / "ground_truth"
 
-_COL_STAGE = 22
-_COL_PASSED = 8
-_COL_METRICS = 50
+_COL_STAGE = 22  # character width of the stage name column
+_COL_PASSED = 8  # character width of the PASS/FAIL column
+_COL_METRICS = 50  # character width of the metrics summary column
 
 
 def _load_records(filename: str) -> list[dict]:
@@ -41,6 +42,7 @@ def _run_text_filter() -> EvaluationReport:
     records = _load_records("text_filter_samples.json")
     samples = [TextFilterSample.model_validate(r) for r in records]
     actual = [{s.slug: s.expected} for s in samples]
+    # TODO: measure actual latency
     return TextFilterEvaluator().evaluate(samples, actual, latency_seconds=0.1)
 
 
@@ -56,6 +58,7 @@ def _run_photo_classifier() -> EvaluationReport:
         )
         for s in samples
     ]
+    # TODO: measure actual latency/cost
     return PhotoClassifierEvaluator().evaluate(samples, actual, latency_seconds=1.0, cost_usd=0.01)
 
 
@@ -63,6 +66,7 @@ def _run_criteria_evaluator() -> EvaluationReport:
     records = _load_records("criteria_evaluation_samples.json")
     samples = [CriteriaEvaluationSample.model_validate(r) for r in records]
     actual = [s.expected for s in samples]
+    # TODO: measure actual latency/cost
     return CriteriaEvaluator().evaluate(samples, actual, latency_seconds=2.0, cost_usd=0.02)
 
 
@@ -70,7 +74,11 @@ def _run_imagineering() -> EvaluationReport:
     records = _load_records("imagineered_samples.json")
     samples = [ImagineeredSample.model_validate(r) for r in records]
     return ImagineeeringEvaluator().evaluate(
-        samples, judge_score=4.0, latency_seconds=10.0, cost_usd=0.05
+        # TODO: measure actual latency/cost
+        samples,
+        judge_score=4.0,
+        latency_seconds=10.0,
+        cost_usd=0.05,
     )
 
 
@@ -100,6 +108,7 @@ def main(
     argv: list[str] | None = None,
     publisher: IMetricsPublisher | None = None,
 ) -> int:
+    # Default publisher — override in tests via the publisher parameter
     if publisher is None:
         publisher = LocalPublisher()
 
@@ -120,10 +129,16 @@ def main(
             report = runner()
             thresholds = load_thresholds(name)
             checks = report.check_thresholds(thresholds)
+            branch_name = os.environ.get("BRANCH_NAME", "")
             publisher.publish(
                 report,
                 experiment_name=name,
-                run_tags={"model_name": "local", "prompt_version": "local", "stage": name},
+                run_tags={
+                    "model_name": "local",
+                    "prompt_version": "local",
+                    "stage": name,
+                    "branch_name": branch_name or "local",
+                },
             )
             results.append((report, checks))
         except Exception as exc:

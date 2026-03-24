@@ -8,6 +8,7 @@ from ...models.room import Photo, RoomType
 from ..eval_config import load_thresholds
 from ..interfaces import IEvaluator
 from ..metrics import (
+    AccuracyMetric,
     EvaluationReport,
     MetricResult,
     compute_macro_precision_recall,
@@ -30,7 +31,7 @@ class PhotoClassifierEvaluator(IEvaluator):
     def name(self) -> str:
         return "photo_classifier"
 
-    def evaluate(  # type: ignore[override]  # extra kwargs beyond base signature
+    def evaluate(
         self,
         samples: list[PhotoClassificationSample],
         actual: list[Photo],
@@ -72,12 +73,11 @@ class PhotoClassifierEvaluator(IEvaluator):
                 fn[expected] += 1
                 fp[predicted] += 1
 
-        accuracy = correct / total if total > 0 else 0.0
         precision, recall = compute_macro_precision_recall(tp, fp, fn, COMMON_ROOMS)
         calibration = calibration_pass / calibration_total if calibration_total > 0 else 0.0
 
         metrics: list[MetricResult] = [
-            MetricResult(name="accuracy", value=accuracy, unit="ratio"),
+            AccuracyMetric(correct=correct, total=total),
             MetricResult(name="precision", value=precision, unit="ratio"),
             MetricResult(name="recall", value=recall, unit="ratio"),
             MetricResult(name="confidence_calibration", value=calibration, unit="ratio"),

@@ -1,7 +1,7 @@
 """Evaluation module — ground truth schemas, interfaces, and metric models.
 
-Exports
--------
+Public interface
+----------------
 Sample schemas (ground truth fixture shapes):
     TextFilterSample
     PhotoClassificationSample

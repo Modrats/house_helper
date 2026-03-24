@@ -1,4 +1,4 @@
-"""Load evaluation thresholds from config/eval_thresholds.yaml."""
+"""Load evaluation thresholds from src/evaluation/config/eval_thresholds.yaml."""
 
 from __future__ import annotations
 
@@ -7,12 +7,26 @@ from pathlib import Path
 
 import yaml
 
-_CONFIG_PATH = Path(__file__).parent.parent.parent / "config" / "eval_thresholds.yaml"
+
+def _get_config_path() -> Path:
+    """Return the path to the eval_thresholds.yaml config file.
+
+    Extracted as a function so tests can monkeypatch it
+    (``monkeypatch.setattr("src.evaluation.eval_config._get_config_path", ...)``)
+    without touching the module-level constant.
+    """
+    return Path(__file__).parent / "config" / "eval_thresholds.yaml"
 
 
 @lru_cache(maxsize=1)
 def _load_all() -> dict:
-    with _CONFIG_PATH.open() as f:
+    """Load and cache the YAML config file.
+
+    The cache means the file is read once per process.
+    In tests that need a fresh load, call ``_load_all.cache_clear()`` before
+    the test and restore it afterwards.
+    """
+    with _get_config_path().open() as f:
         return yaml.safe_load(f)
 
 

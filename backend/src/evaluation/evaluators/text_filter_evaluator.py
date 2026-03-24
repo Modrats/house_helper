@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 from ..eval_config import load_thresholds
 from ..interfaces import IEvaluator
-from ..metrics import EvaluationReport, MetricResult, compute_accuracy, compute_fnr
+from ..metrics import AccuracyMetric, EvaluationReport, MetricResult, compute_fnr
 from ..models import TextFilterSample
 
 
@@ -13,7 +13,7 @@ class TextFilterEvaluator(IEvaluator):
     def name(self) -> str:
         return "text_filter"
 
-    def evaluate(  # type: ignore[override]  # extra kwargs beyond base signature
+    def evaluate(
         self,
         samples: list[TextFilterSample],
         actual: list[dict[str, bool]],
@@ -36,11 +36,10 @@ class TextFilterEvaluator(IEvaluator):
                 if not predicted:
                     false_negatives += 1
 
-        accuracy = compute_accuracy(correct, total)
         fnr = compute_fnr(false_negatives, should_be_true)
 
         metrics: list[MetricResult] = [
-            MetricResult(name="accuracy", value=accuracy, unit="ratio"),
+            AccuracyMetric(correct=correct, total=total),
             MetricResult(name="false_negative_rate", value=fnr, unit="ratio"),
             MetricResult(name="latency", value=latency_seconds, unit="seconds"),
         ]
