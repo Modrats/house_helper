@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useRoomClassifications } from '../hooks/useRoomClassifications';
 import { RoomSidebar } from '../components/RoomSidebar';
 import { PhotoGrid } from '../components/PhotoGrid';
+import { BeforeAfterSlider } from '../components/BeforeAfterSlider';
 
 // CSS custom property for transitions
 const galleryStyle = {
@@ -52,7 +53,20 @@ export function GalleryPage(): ReactNode {
         </div>
 
         <main className="gallery-layout__main" aria-label="Photo grid">
-          {/* BeforeAfterSlider will be integrated in issue #5 */}
+          {selectedRoom?.hasImaginedVersion && selectedRoom.photos.length > 0 && (() => {
+            const original = selectedRoom.photos.find((p) => !p.isImaginedVersion);
+            const transformed = selectedRoom.photos.find((p) => p.isImaginedVersion);
+            if (original && transformed) {
+              return (
+                <BeforeAfterSlider
+                  original={original.url}
+                  transformed={transformed.url}
+                  label={selectedRoom.displayName}
+                />
+              );
+            }
+            return null;
+          })()}
           <PhotoGrid
             photos={selectedRoom?.photos ?? []}
             roomName={selectedRoom?.displayName ?? 'Room'}
