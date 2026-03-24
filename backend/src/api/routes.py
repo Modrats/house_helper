@@ -3,15 +3,22 @@
 All endpoints are defined here and registered via the router.
 Dependencies are injected through FastAPI's Depends mechanism,
 wired to the composition root in core.py.
+
+Photos are served through dedicated endpoints rather than static
+directory mounts. This means only HouseRepository changes if the
+backing storage changes (e.g. from local filesystem to Azure Blob).
 """
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+import mimetypes
 
-from ..core import create_storage
-from ..interfaces.data_source import IDataSource
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response
+
+from ..core import create_repository
 from ..observability import get_logger
+from ..services.house_repository import HouseRepository
 from .models import (
     FilterResultResponse,
     HealthResponse,
@@ -26,9 +33,9 @@ logger = get_logger(__name__)
 router = APIRouter()
 
 
-def get_storage() -> IDataSource:
-    """Dependency provider for storage — delegates to the composition root."""
-    return create_storage()
+def get_repo() -> HouseRepository:
+    """Dependency provider for HouseRepository — delegates to the composition root."""
+    return create_repository()
 
 
 @router.get("/health", response_model=HealthResponse, tags=["system"])
@@ -38,20 +45,20 @@ def health_check() -> HealthResponse:
 
 
 @router.get("/api/houses", response_model=list[HouseListItemResponse], tags=["houses"])
-def list_houses(storage: IDataSource = Depends(get_storage)) -> list[HouseListItemResponse]:
+def list_houses(repo: HouseRepository = Depends(get_repo)) -> list[HouseListItemResponse]:
     """List all houses with summary info."""
-    slugs = storage.list_houses()
+    slugs = repo.list_houses()
     items: list[HouseListItemResponse] = []
     for slug in slugs:
         try:
-            house = storage.get_house(slug)
+            house = repo.get_house(slug)
         except FileNotFoundError:
             logger.warning("House '%s' listed but not loadable, skipping", slug)
             continue
 
-        photos = storage.get_photos(slug)
+        photos = repo.get_photos(slug)
         first_photo = house.photos[0].filename if house.photos else None
-        thumbnail_url = f"/static/input/{slug}/photos/{first_photo}" if first_photo else None
+        thumbnail_url = f"/api/houses/{slug}/photos/{first_photo}" if first_photo else None
 
         items.append(
             HouseListItemResponse(
@@ -70,20 +77,20 @@ def list_houses(storage: IDataSource = Depends(get_storage)) -> list[HouseListIt
 
 
 @router.get("/api/houses/{slug}", response_model=HouseDetailResponse, tags=["houses"])
-def get_house(slug: str, storage: IDataSource = Depends(get_storage)) -> HouseDetailResponse:
+def get_house(slug: str, repo: HouseRepository = Depends(get_repo)) -> HouseDetailResponse:
     """Get full house details including listing text and filter results."""
     try:
-        house = storage.get_house(slug)
+        house = repo.get_house(slug)
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail=f"House '{slug}' not found")
 
-    filter_results = storage.get_criteria_results(slug)
-    room_classifications = storage.get_room_classifications(slug)
+    filter_results = repo.get_criteria_results(slug)
+    room_classifications = repo.get_room_classifications(slug)
 
     photo_responses = [
         PhotoResponse(
             filename=photo.filename,
-            url=f"/static/input/{slug}/photos/{photo.filename}",
+            url=f"/api/houses/{slug}/photos/{photo.filename}",
             room_type=_find_room_type(photo.filename, room_classifications),
         )
         for photo in house.photos
@@ -111,16 +118,15 @@ def get_house(slug: str, storage: IDataSource = Depends(get_storage)) -> HouseDe
     tags=["houses"],
 )
 def get_room_classifications(
-    slug: str, storage: IDataSource = Depends(get_storage)
+    slug: str, repo: HouseRepository = Depends(get_repo)
 ) -> list[RoomClassificationResponse]:
     """Get room classifications for a house."""
-    # Verify house exists
     try:
-        storage.get_house(slug)
+        repo.get_house(slug)
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail=f"House '{slug}' not found")
 
-    classifications = storage.get_room_classifications(slug)
+    classifications = repo.get_room_classifications(slug)
     return [
         RoomClassificationResponse(
             room_type=room_type,
@@ -136,16 +142,16 @@ def get_room_classifications(
 def get_photos(
     slug: str,
     room_type: str | None = Query(default=None, alias="roomType"),
-    storage: IDataSource = Depends(get_storage),
+    repo: HouseRepository = Depends(get_repo),
 ) -> list[PhotoResponse]:
     """Get photos for a house with optional room type filter."""
     try:
-        house = storage.get_house(slug)
+        house = repo.get_house(slug)
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail=f"House '{slug}' not found")
 
-    room_classifications = storage.get_room_classifications(slug)
-    imagineered = storage.get_imagineered_photos(slug)
+    room_classifications = repo.get_room_classifications(slug)
+    imagineered = repo.get_imagineered_photos(slug)
     imagineered_names = {_path_to_filename(p) for p in imagineered}
 
     photos: list[PhotoResponse] = []
@@ -156,17 +162,60 @@ def get_photos(
 
         imagineered_url = None
         if photo.filename in imagineered_names:
-            imagineered_url = f"/static/output/{slug}/imagineered/{photo.filename}"
+            imagineered_url = f"/api/houses/{slug}/imagineered/{photo.filename}"
 
         photos.append(
             PhotoResponse(
                 filename=photo.filename,
-                url=f"/static/input/{slug}/photos/{photo.filename}",
+                url=f"/api/houses/{slug}/photos/{photo.filename}",
                 room_type=photo_room,
                 imagineered_url=imagineered_url,
             )
         )
     return photos
+
+
+@router.get("/api/houses/{slug}/photos/{filename}", tags=["photos"])
+def get_photo(
+    slug: str,
+    filename: str,
+    repo: HouseRepository = Depends(get_repo),
+) -> Response:
+    """Serve an input photo for a house.
+
+    Reads the photo bytes through the storage service so switching
+    to a cloud backend (e.g. Azure Blob) only requires updating
+    HouseRepository — the route stays unchanged.
+    """
+    try:
+        data = repo.get_photo_bytes(slug, filename)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Photo '{filename}' not found")
+
+    media_type, _ = mimetypes.guess_type(filename)
+    return Response(content=data, media_type=media_type or "application/octet-stream")
+
+
+@router.get("/api/houses/{slug}/imagineered/{filename}", tags=["photos"])
+def get_imagineered_photo(
+    slug: str,
+    filename: str,
+    repo: HouseRepository = Depends(get_repo),
+) -> Response:
+    """Serve an imagineered (AI-reimagined) output photo for a house.
+
+    Reads the photo bytes through the storage service so switching
+    to a cloud backend only requires updating HouseRepository.
+    """
+    try:
+        data = repo.get_imagineered_photo_bytes(slug, filename)
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=404, detail=f"Imagineered photo '{filename}' not found"
+        )
+
+    media_type, _ = mimetypes.guess_type(filename)
+    return Response(content=data, media_type=media_type or "application/octet-stream")
 
 
 def _find_room_type(filename: str, classifications: dict[str, list[str]]) -> str | None:

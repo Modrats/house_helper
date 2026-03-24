@@ -1,121 +1,91 @@
-"""IDataSource abstract base class for storage abstraction.
+"""IDataSource abstract base class — generic storage CRUD.
 
-Allows swapping between local filesystem and Azure Blob/Table Storage
-without changing pipeline code.
+Provides a storage-backend-agnostic interface for reading and writing
+data. Does not know about domain concepts like houses or rooms.
+
+Domain-specific logic belongs in HouseRepository, which wraps IDataSource
+and translates between generic path operations and house-domain queries.
+
+Example implementations:
+    - LocalStorage: Reads/writes on the local filesystem.
+    - AzureStorageService: Reads/writes from Azure Blob + Table Storage.
 """
 
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any
-
-from ..models.house import FilterResult, House
+from pathlib import Path
 
 
 class IDataSource(ABC):
-    """Abstract base class for storage operations.
+    """Generic CRUD interface for the storage backend.
 
-    Abstracts storage backend (local filesystem vs Azure Blob/Table Storage).
-    Implementations handle reading houses and persisting pipeline outputs.
+    All methods operate on opaque paths/keys interpreted by the
+    implementation. LocalStorage treats them as filesystem paths;
+    cloud implementations map them to blob paths or table keys.
 
-    Provides two categories of methods:
-        - Pipeline methods: load_houses, save_filter_results (batch processing)
-        - Query methods: list_houses, get_house, get_photos, etc. (API layer)
-
-    Example implementations:
-        - LocalStorage: Reads from local houses/ folder structure
-        - AzureStorageService: Reads from Azure Blob + Table Storage
+    This interface intentionally has no knowledge of houses, rooms,
+    or pipeline structure — it is pure storage plumbing.
     """
 
     @abstractmethod
-    def load_houses(self, criteria: dict[str, Any]) -> list[House]:
-        """Load all houses, restoring status from existing outputs.
+    def read_json(self, path: str | Path) -> dict:
+        """Read and parse a JSON file from storage.
 
         Args:
-            criteria: Current filter criteria from config, used to detect drift.
+            path: Storage path or key.
 
         Returns:
-            List of houses with status restored from any prior outputs.
-        """
-
-    @abstractmethod
-    def save_filter_results(self, houses: list[House]) -> None:
-        """Write filter results for each house.
-
-        Args:
-            houses: Houses with filter_results populated by the pipeline.
-        """
-
-    # -- Query methods (API layer) --------------------------------------------
-
-    @abstractmethod
-    def list_houses(self) -> list[str]:
-        """List all available house slugs.
-
-        Returns:
-            Sorted list of house slug strings.
-        """
-
-    @abstractmethod
-    def get_house(self, slug: str) -> House:
-        """Load a single house with its metadata, listing text, and photos.
-
-        Args:
-            slug: House identifier (directory name).
-
-        Returns:
-            Fully populated House model.
+            Parsed JSON as a dict.
 
         Raises:
-            FileNotFoundError: If the house slug does not exist.
+            FileNotFoundError: If the path does not exist.
         """
 
     @abstractmethod
-    def get_photos(self, slug: str) -> list[str]:
-        """Get absolute file paths for all photos of a house.
+    def write_json(self, path: str | Path, data: dict) -> None:
+        """Write a dict as JSON to storage.
+
+        Parent directories (or equivalent) are created automatically.
 
         Args:
-            slug: House identifier.
+            path: Storage path or key.
+            data: Data to serialise and write.
+        """
+
+    @abstractmethod
+    def list_keys(self, prefix: str | Path) -> list[str]:
+        """List keys (paths) directly under a given prefix.
+
+        Args:
+            prefix: Directory or key prefix to list.
 
         Returns:
-            List of absolute file path strings for supported image files.
+            Sorted list of key strings under the prefix.
+            Empty list if the prefix does not exist.
+        """
+
+    @abstractmethod
+    def read_bytes(self, path: str | Path) -> bytes:
+        """Read raw bytes from storage.
+
+        Args:
+            path: Storage path or key.
+
+        Returns:
+            Raw bytes content.
 
         Raises:
-            FileNotFoundError: If the house slug does not exist.
+            FileNotFoundError: If the path does not exist.
         """
 
     @abstractmethod
-    def get_room_classifications(self, slug: str) -> dict[str, list[str]]:
-        """Get room-to-photo mappings from classifier output.
+    def exists(self, path: str | Path) -> bool:
+        """Check whether a path/key exists in storage.
 
         Args:
-            slug: House identifier.
+            path: Storage path or key.
 
         Returns:
-            Mapping of room type string to list of photo filenames.
-            Empty dict if no classification output exists yet.
-        """
-
-    @abstractmethod
-    def get_criteria_results(self, slug: str) -> FilterResult:
-        """Get criteria pass/fail results from pipeline output.
-
-        Args:
-            slug: House identifier.
-
-        Returns:
-            FilterResult with p1/p2/excluded results.
-            Empty FilterResult if no criteria output exists yet.
-        """
-
-    @abstractmethod
-    def get_imagineered_photos(self, slug: str) -> list[str]:
-        """Get absolute file paths for imagineered (AI-reimagined) photos.
-
-        Args:
-            slug: House identifier.
-
-        Returns:
-            List of absolute file path strings for imagineered images.
-            Empty list if no imagineered output exists yet.
+            True if the path exists, False otherwise.
         """
