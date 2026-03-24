@@ -36,6 +36,17 @@
 - Tests: 44 parametrised cases, NamedTuple + `@pytest.mark.parametrize`, zero class-based tests. `tmp_path` fixture for filesystem cases.
 - VCR cassette structure placeholder at `tests/fixtures/cassettes/` — record with `pytest --record-mode=new_episodes` once API keys are available.
 
+### 2026-03-24 — Gustave code review of eval harness: 11 gaps to fix
+
+Gustave (Lead) reviewed the evaluation harness delivered in Issue #33 and identified 11 gaps (all direct fixes, no redesigns):
+- `classification/` dir must be `classifier/` to match `plan.md`.
+- `criteria_result.json` must be at `criteria/criteria_result.json`, not slug root.
+- `_check_valid_json` must reject non-dict JSON roots — arrays crash callers on `.keys()`.
+- `ConsistencyJudgment` is dead code — implement `_evaluate_consistency` or remove and update docstring.
+- `run_llm_judge` docstring falsely claims batching — remove or note as future work.
+- `_DEFAULT_API_VERSION` violates team decision — use `os.environ["AZURE_OPENAI_API_VERSION"]` and raise on missing.
+- Silent `except Exception` with hardcoded path fallbacks in `llm_judge.py` and `deterministic.py` — let imports fail loudly.
+- `write_summary` not exported from `__init__.py`. Full gap list in decisions.md.
 ### 2026-03-24: Distance calculator service (Issue #11, PR #52)
 
 - **IDistanceCalculator** interface at `interfaces/distance_calculator.py` — ABC with `calculate_distances(slug) -> DistanceResult`.

@@ -2,7 +2,8 @@
         install-backend install-frontend lint-backend lint-frontend \
         test-backend test-frontend format-backend format-frontend \
         dev-backend dev-frontend \
-        docker-build docker-up docker-down backend-run frontend-run
+        docker-build docker-up docker-down backend-run frontend-run \
+        eval
 
 # Default target
 help:
@@ -17,6 +18,7 @@ help:
 	@echo "  make test            Run all tests"
 	@echo "  make format          Auto-fix formatting issues"
 	@echo "  make pre-commit      Run pre-commit checks manually"
+	@echo "  make eval            Run all evaluators (COMPONENT=name for one)"
 	@echo ""
 	@echo "Development:"
 	@echo "  make dev-backend     Start backend dev server"
@@ -92,6 +94,10 @@ format-frontend:
 
 pre-commit:
 	@./scripts/pre-commit-wrapper.sh --all-files
+
+eval:
+	@echo "📊 Running evaluators..."
+	cd backend && $(MAKE) eval COMPONENT=$(COMPONENT)
 
 #------------------------------------------------------------------------------
 # Development
