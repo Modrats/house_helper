@@ -1,0 +1,25 @@
+You are evaluating a real-estate listing against a set of criteria.
+
+LISTING TEXT:
+$listing_text
+
+CRITERIA TO EVALUATE:
+$criteria_list
+
+For each criterion, determine whether the listing text indicates the criterion is met.
+Consider both explicit mentions and strong implications from the text.
+Be conservative — only mark a criterion as met if the text clearly supports it.
+
+Respond with ONLY a JSON object (no extra text) with exactly this structure:
+{
+  "evaluations": [
+    {
+      "criterion_name": "the criterion text exactly as given",
+      "met": true or false,
+      "confidence": a number between 0.0 and 1.0,
+      "reasoning": "one-sentence explanation of why the criterion is or is not met"
+    }
+  ]
+}
+
+Include one entry for every criterion listed above, in the same order.
