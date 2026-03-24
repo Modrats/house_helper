@@ -6,8 +6,12 @@ Implementations live in services/.
 
 from .data_source import IDataSource
 from .filter import IFilter
+from .llm_service import ILLMService
+from .room_classifier import IRoomClassifier
 
 __all__ = [
-    "IFilter",
     "IDataSource",
+    "IFilter",
+    "ILLMService",
+    "IRoomClassifier",
 ]

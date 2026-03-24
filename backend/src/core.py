@@ -1,10 +1,15 @@
 """Composition root — wires interfaces to concrete implementations."""
 
+from __future__ import annotations
+
+import os
+
 from .config import load_storage_paths
 from .interfaces.data_source import IDataSource
+from .interfaces.room_classifier import IRoomClassifier
+from .services.azure_openai_service import AzureOpenAIService
 from .services.local_storage import LocalStorage
-from .services.room_classifier import RoomClassifier
-from .settings import get_settings
+from .services.room_classifier import AzureOpenAIRoomClassifier
 
 
 def create_storage() -> IDataSource:
@@ -21,18 +26,21 @@ def create_storage() -> IDataSource:
     return LocalStorage(input_dir=input_dir, output_dir=output_dir)
 
 
-def create_room_classifier() -> RoomClassifier:
-    """Create a RoomClassifier wired to settings and storage paths.
+def create_room_classifier() -> IRoomClassifier:
+    """Create a room classifier wired to the LLM service and storage paths.
 
     Returns:
-        A configured RoomClassifier instance.
+        A configured IRoomClassifier implementation.
 
     Raises:
         RuntimeError: If Azure OpenAI credentials are not configured.
     """
-    settings = get_settings()
-    return RoomClassifier(
-        settings=settings,
-        input_dir=settings.input_data_path,
-        output_dir=settings.output_path,
+    llm_service = AzureOpenAIService()
+    input_dir, output_dir = load_storage_paths()
+    batch_size = int(os.environ.get("ROOM_CLASSIFIER_BATCH_SIZE", "5"))
+    return AzureOpenAIRoomClassifier(
+        llm_service=llm_service,
+        input_dir=input_dir,
+        output_dir=output_dir,
+        batch_size=batch_size,
     )
