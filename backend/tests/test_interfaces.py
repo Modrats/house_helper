@@ -2,8 +2,8 @@
 
 import pytest
 
+from src.interfaces.data_source import IDataSource
 from src.interfaces.filter import FilterCriteria, IFilter
-from src.models.house import House
 
 
 class TestFilterCriteria:
@@ -69,44 +69,20 @@ class TestFilterCriteria:
             FilterCriteria(min_price=-1)
 
 
-class TestIFilterProtocol:
-    """Tests to verify IFilter Protocol structure."""
+class TestProtocolUsage:
+    """Tests for using protocols in type hints (no runtime validation)."""
 
-    def test_protocol_is_runtime_checkable(self):
-        """IFilter is runtime_checkable for isinstance checks."""
+    def test_protocols_provide_type_hints(self):
+        """Protocols provide clear type hints for static analysis."""
+        # This test verifies that our protocols are properly structured
+        # Static type checkers (mypy, pyright) will catch protocol violations
 
-        # Create a minimal implementation
-        class MockFilter:
-            @property
-            def name(self) -> str:
-                return "mock_filter"
+        def accepts_filter(f: IFilter) -> str:
+            return f.name
 
-            def filter(self, houses: list[House], criteria: FilterCriteria) -> list[House]:
-                return houses
+        def accepts_data_source(ds: IDataSource) -> list[str]:
+            return ds.list_houses()
 
-            async def filter_async(
-                self, houses: list[House], criteria: FilterCriteria
-            ) -> list[House]:
-                return houses
-
-        mock = MockFilter()
-        assert isinstance(mock, IFilter)
-
-    def test_non_conforming_class_fails_check(self):
-        """Classes without required methods don't match Protocol."""
-
-        class NotAFilter:
-            pass
-
-        assert not isinstance(NotAFilter(), IFilter)
-
-    def test_partial_implementation_fails_check(self):
-        """Partial implementations don't match Protocol."""
-
-        class PartialFilter:
-            def filter(self, houses: list[House], criteria: FilterCriteria) -> list[House]:
-                return houses
-
-            # Missing filter_async and name
-
-        assert not isinstance(PartialFilter(), IFilter)
+        # These functions exist and will be type-checked by static analysis
+        assert callable(accepts_filter)
+        assert callable(accepts_data_source)

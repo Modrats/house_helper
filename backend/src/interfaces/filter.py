@@ -7,12 +7,11 @@ room classification, photo checking, distance, etc.).
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Protocol, runtime_checkable
+from typing import Protocol
 
 from pydantic import BaseModel, Field
 
-if TYPE_CHECKING:
-    from ..models.house import House
+from ..models.house import House
 
 
 class FilterCriteria(BaseModel):
@@ -79,7 +78,6 @@ class FilterCriteria(BaseModel):
     model_config = {"extra": "allow"}  # Allow extension with custom criteria
 
 
-@runtime_checkable
 class IFilter(Protocol):
     """Protocol for house filtering operations.
 

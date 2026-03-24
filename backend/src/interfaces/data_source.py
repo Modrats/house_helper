@@ -6,15 +6,12 @@ without changing pipeline code.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Protocol, runtime_checkable
+from pathlib import Path
+from typing import Protocol
 
-if TYPE_CHECKING:
-    from pathlib import Path
-
-    from ..models.house import House
+from ..models.house import House
 
 
-@runtime_checkable
 class IDataSource(Protocol):
     """Protocol for data source operations.
 
