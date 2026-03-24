@@ -210,9 +210,7 @@ def get_imagineered_photo(
     try:
         data = repo.get_imagineered_photo_bytes(slug, filename)
     except FileNotFoundError:
-        raise HTTPException(
-            status_code=404, detail=f"Imagineered photo '{filename}' not found"
-        )
+        raise HTTPException(status_code=404, detail=f"Imagineered photo '{filename}' not found")
 
     media_type, _ = mimetypes.guess_type(filename)
     return Response(content=data, media_type=media_type or "application/octet-stream")

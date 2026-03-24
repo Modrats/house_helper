@@ -130,9 +130,7 @@ class HouseRepository:
             for key in self._storage.list_keys(photos_dir):
                 f = Path(key)
                 if f.suffix.lower() in _IMAGE_EXTENSIONS:
-                    photos.append(
-                        Photo(filename=f.name, path=str(f.relative_to(self._input_dir)))
-                    )
+                    photos.append(Photo(filename=f.name, path=str(f.relative_to(self._input_dir))))
 
         return House(
             slug=slug,
@@ -202,9 +200,7 @@ class HouseRepository:
         """
         path = self._output_dir / slug / "imagineered" / filename
         if not self._storage.exists(path):
-            raise FileNotFoundError(
-                f"Imagineered photo '{filename}' not found for house '{slug}'"
-            )
+            raise FileNotFoundError(f"Imagineered photo '{filename}' not found for house '{slug}'")
         return self._storage.read_bytes(path)
 
     # -- Private helpers --------------------------------------------------------
