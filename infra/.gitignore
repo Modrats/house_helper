@@ -1,0 +1,12 @@
+# Terraform state
+*.tfstate
+*.tfstate.backup
+.terraform/
+.terraform.lock.hcl
+
+# tfvars with real values (never commit)
+terraform.tfvars
+*.auto.tfvars
+
+# Crash logs
+crash.log

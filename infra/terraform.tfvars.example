@@ -1,0 +1,23 @@
+# Copy this file to terraform.tfvars and fill in your subscription_id.
+# terraform.tfvars is gitignored — never commit it.
+#
+# Usage:
+#   cp terraform.tfvars.example terraform.tfvars
+#   # Edit terraform.tfvars and set subscription_id
+#   terraform plan -var-file=terraform.tfvars
+
+# Required — find yours with: az account show --query id -o tsv
+subscription_id = "00000000-0000-0000-0000-000000000000"
+
+location    = "francecentral"
+app_prefix  = "househelper"
+environment = "dev"
+
+# Full image ref — set after first `terraform apply` creates the ACR,
+# then push your image and update this value.
+backend_image = "househelperdevacr.azurecr.io/backend:latest"
+
+backend_cpu          = 0.5
+backend_memory       = "1Gi"
+backend_min_replicas = 0
+backend_max_replicas = 3
