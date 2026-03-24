@@ -11,13 +11,13 @@ import pytest
 
 from src.config import load_distance_config
 from src.models.distance import DistanceResult, TravelTime
-from src.services.distance_calculator import GoogleMapsDistanceCalculator
+from src.services.distance_calculator import AzureMapsDistanceCalculator
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-_FAKE_API_KEY = "test-google-maps-key"
+_FAKE_API_KEY = "test-azure-maps-key"
 
 _SAMPLE_DESTINATIONS = [
     {"name": "Amsterdam Central", "address": "Amsterdam Centraal, Amsterdam", "modes": ["transit"]},
@@ -25,30 +25,14 @@ _SAMPLE_DESTINATIONS = [
 ]
 
 
-def _make_api_response(
-    duration_seconds: int = 1500,
-    duration_text: str = "25 mins",
-    status: str = "OK",
-    element_status: str = "OK",
-) -> dict:
-    """Build a fake Google Maps Distance Matrix API response."""
-    return {
-        "status": status,
-        "rows": [
-            {
-                "elements": [
-                    {
-                        "status": element_status,
-                        "duration": {
-                            "value": duration_seconds,
-                            "text": duration_text,
-                        },
-                        "distance": {"value": 12000, "text": "12 km"},
-                    }
-                ]
-            }
-        ],
-    }
+def _make_geocode_response(lat: float = 52.3791, lon: float = 4.9003) -> tuple[float, float]:
+    """Return a fake geocode (lat, lon) tuple."""
+    return (lat, lon)
+
+
+def _make_route_response(duration_seconds: int = 1500) -> dict:
+    """Build a fake Azure Maps Route API response."""
+    return {"routes": [{"summary": {"travelTimeInSeconds": duration_seconds}}]}
 
 
 def _setup_house(
@@ -76,9 +60,9 @@ def _make_service(
     input_dir: Path,
     output_dir: Path,
     destinations: list[dict] | None = None,
-) -> GoogleMapsDistanceCalculator:
-    """Create a GoogleMapsDistanceCalculator with test defaults."""
-    return GoogleMapsDistanceCalculator(
+) -> AzureMapsDistanceCalculator:
+    """Create an AzureMapsDistanceCalculator with test defaults."""
+    return AzureMapsDistanceCalculator(
         api_key=_FAKE_API_KEY,
         input_dir=input_dir,
         output_dir=output_dir,
@@ -107,18 +91,18 @@ TRAVEL_TIME_SERIALIZATION_CASES = [
             destination_address="Amsterdam Centraal",
             mode="transit",
             duration_minutes=25,
-            duration_text="25 mins",
+            duration_text="25 min",
         ),
         expected_minutes=25,
     ),
     TravelTimeSerializationCase(
-        description="TravelTime preserves cycling mode",
+        description="TravelTime preserves driving mode",
         travel_time=TravelTime(
             destination_name="Office",
             destination_address="Zuidas, Amsterdam",
-            mode="cycling",
+            mode="driving",
             duration_minutes=15,
-            duration_text="15 mins",
+            duration_text="15 min",
         ),
         expected_minutes=15,
     ),
@@ -174,7 +158,7 @@ def test_distance_result_container(description: str, slug: str, destination_coun
             destination_address=f"Addr {i}",
             mode="transit",
             duration_minutes=10 * (i + 1),
-            duration_text=f"{10 * (i + 1)} mins",
+            duration_text=f"{10 * (i + 1)} min",
         )
         for i in range(destination_count)
     ]
@@ -205,7 +189,7 @@ SUMMARY_DICT_CASES = [
                 destination_address="Centraal",
                 mode="transit",
                 duration_minutes=25,
-                duration_text="25 mins",
+                duration_text="25 min",
             ),
         ],
         expected_keys=["Central (transit)"],
@@ -276,17 +260,20 @@ def test_calculation_success(
     input_dir, output_dir = _setup_house(tmp_path, "test-house")
     service = _make_service(input_dir, output_dir, destinations)
 
-    mock_resp = MagicMock()
-    mock_resp.status_code = 200
-    mock_resp.json.return_value = _make_api_response()
-    mock_resp.raise_for_status = MagicMock()
+    mock_geocode = MagicMock(return_value=_make_geocode_response())
+    mock_route = MagicMock(return_value=_make_route_response())
 
-    with patch("src.services.distance_calculator.requests.get", return_value=mock_resp) as mock_get:
-        result = service.calculate_distances("test-house")
+    with patch.object(AzureMapsDistanceCalculator, "_geocode", mock_geocode):
+        with patch.object(AzureMapsDistanceCalculator, "_call_route_api", mock_route):
+            result = service.calculate_distances("test-house")
 
     assert len(result.destinations) == expected_result_count
     assert result.origin_address == "Keizersgracht 100, Amsterdam"
-    assert mock_get.call_count == expected_result_count
+    assert mock_route.call_count == expected_result_count
+
+    # Verify duration text is formatted from seconds (1500s = 25 min)
+    for tt in result.destinations:
+        assert "min" in tt.duration_text
 
     # Verify output file was written
     output_file = output_dir / "test-house" / "distances.json"
@@ -304,7 +291,7 @@ class IdempotentCase(NamedTuple):
     description: str
     recalculate: bool
     change_config: bool
-    expected_api_calls: int
+    expected_route_calls: int
 
 
 IDEMPOTENT_CASES = [
@@ -312,19 +299,19 @@ IDEMPOTENT_CASES = [
         description="skips calculation when results exist and config unchanged",
         recalculate=False,
         change_config=False,
-        expected_api_calls=0,
+        expected_route_calls=0,
     ),
     IdempotentCase(
         description="recalculates when config changes",
         recalculate=True,
         change_config=True,
-        expected_api_calls=1,
+        expected_route_calls=1,
     ),
 ]
 
 
 @pytest.mark.parametrize(
-    "description, recalculate, change_config, expected_api_calls",
+    "description, recalculate, change_config, expected_route_calls",
     IDEMPOTENT_CASES,
 )
 def test_idempotent_behavior(
@@ -332,7 +319,7 @@ def test_idempotent_behavior(
     description: str,
     recalculate: bool,
     change_config: bool,
-    expected_api_calls: int,
+    expected_route_calls: int,
 ) -> None:
     destinations = [
         {"name": "Central", "address": "Centraal", "modes": ["transit"]},
@@ -350,7 +337,7 @@ def test_idempotent_behavior(
                 "destination_address": "Centraal",
                 "mode": "transit",
                 "duration_minutes": 25,
-                "duration_text": "25 mins",
+                "duration_text": "25 min",
             }
         ],
         "config_hash": service._config_hash(),
@@ -369,15 +356,14 @@ def test_idempotent_behavior(
         ]
         service = _make_service(input_dir, output_dir, destinations)
 
-    mock_resp = MagicMock()
-    mock_resp.status_code = 200
-    mock_resp.json.return_value = _make_api_response()
-    mock_resp.raise_for_status = MagicMock()
+    mock_geocode = MagicMock(return_value=_make_geocode_response())
+    mock_route = MagicMock(return_value=_make_route_response())
 
-    with patch("src.services.distance_calculator.requests.get", return_value=mock_resp) as mock_get:
-        result = service.calculate_distances("test-house")
+    with patch.object(AzureMapsDistanceCalculator, "_geocode", mock_geocode):
+        with patch.object(AzureMapsDistanceCalculator, "_call_route_api", mock_route):
+            result = service.calculate_distances("test-house")
 
-    assert mock_get.call_count == expected_api_calls
+    assert mock_route.call_count == expected_route_calls
     assert result.slug == "test-house"
 
 
@@ -432,60 +418,71 @@ def test_address_extraction(
 
 
 # ---------------------------------------------------------------------------
-# Service — API error handling
+# Service — error handling
 # ---------------------------------------------------------------------------
 
 
 class ErrorCase(NamedTuple):
-    """Test case for API error handling."""
+    """Test case for error handling in distance calculation."""
 
     description: str
-    api_response: dict
+    destinations: list[dict]
+    geocode_raises: Exception | None
+    route_response: dict | None
     expected_result_count: int
 
 
 ERROR_CASES = [
     ErrorCase(
-        description="handles top-level API error status",
-        api_response={"status": "REQUEST_DENIED", "rows": []},
+        description="unsupported travel mode (cycling) is skipped",
+        destinations=[{"name": "Central", "address": "Centraal", "modes": ["cycling"]}],
+        geocode_raises=None,
+        route_response=None,
         expected_result_count=0,
     ),
     ErrorCase(
-        description="handles element-level ZERO_RESULTS",
-        api_response={
-            "status": "OK",
-            "rows": [{"elements": [{"status": "ZERO_RESULTS"}]}],
-        },
+        description="geocode failure returns no result for that destination",
+        destinations=[{"name": "Central", "address": "Centraal", "modes": ["transit"]}],
+        geocode_raises=ValueError("no geocode results"),
+        route_response=None,
         expected_result_count=0,
     ),
     ErrorCase(
-        description="handles empty rows",
-        api_response={"status": "OK", "rows": []},
+        description="empty routes response produces no result",
+        destinations=[{"name": "Central", "address": "Centraal", "modes": ["transit"]}],
+        geocode_raises=None,
+        route_response={"routes": []},
         expected_result_count=0,
     ),
 ]
 
 
-@pytest.mark.parametrize("description, api_response, expected_result_count", ERROR_CASES)
+@pytest.mark.parametrize(
+    "description, destinations, geocode_raises, route_response, expected_result_count",
+    ERROR_CASES,
+)
 def test_api_error_handling(
     tmp_path: Path,
     description: str,
-    api_response: dict,
+    destinations: list[dict],
+    geocode_raises: Exception | None,
+    route_response: dict | None,
     expected_result_count: int,
 ) -> None:
-    destinations = [
-        {"name": "Central", "address": "Centraal", "modes": ["transit"]},
-    ]
     input_dir, output_dir = _setup_house(tmp_path, "test-house")
     service = _make_service(input_dir, output_dir, destinations)
 
-    mock_resp = MagicMock()
-    mock_resp.status_code = 200
-    mock_resp.json.return_value = api_response
-    mock_resp.raise_for_status = MagicMock()
+    mock_geocode = MagicMock(
+        side_effect=geocode_raises if geocode_raises is not None else None,
+        return_value=_make_geocode_response() if geocode_raises is None else None,
+    )
+    mock_route = MagicMock(
+        return_value=route_response if route_response is not None else _make_route_response(),
+    )
 
-    with patch("src.services.distance_calculator.requests.get", return_value=mock_resp):
-        result = service.calculate_distances("test-house")
+    with patch.object(AzureMapsDistanceCalculator, "_geocode", mock_geocode):
+        with patch.object(AzureMapsDistanceCalculator, "_call_route_api", mock_route):
+            result = service.calculate_distances("test-house")
 
     assert len(result.destinations) == expected_result_count
 
@@ -525,7 +522,7 @@ distance:
   destinations:
     - name: "Central Station"
       address: "Amsterdam Centraal"
-      modes: ["transit", "cycling"]
+      modes: ["transit", "walking"]
     - name: "Airport"
       address: "Schiphol"
       modes: ["driving"]
@@ -536,7 +533,7 @@ distance:
     destinations = load_distance_config(config_file)
     assert len(destinations) == 2
     assert destinations[0]["name"] == "Central Station"
-    assert destinations[0]["modes"] == ["transit", "cycling"]
+    assert destinations[0]["modes"] == ["transit", "walking"]
     assert destinations[1]["name"] == "Airport"
 
 

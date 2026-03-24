@@ -1,7 +1,7 @@
-"""Distance calculator service — calculates travel times via Google Maps Distance Matrix API.
+"""Distance calculator service — calculates travel times via Azure Maps API.
 
 Reads a house address from input_data/houses/{slug}/listing.txt,
-queries the Google Maps Distance Matrix API for configured destinations,
+queries the Azure Maps API for configured destinations,
 and writes results to outputs/houses/{slug}/distances.json.
 
 Idempotent — skips recalculation if results already exist and destinations
@@ -23,15 +23,22 @@ from ..models.distance import DistanceResult, TravelTime
 
 logger = logging.getLogger(__name__)
 
-_DISTANCE_MATRIX_URL = "https://maps.googleapis.com/maps/api/distancematrix/json"
+_AZURE_MAPS_SEARCH = "https://atlas.microsoft.com/search/address/json"
+_AZURE_MAPS_ROUTE = "https://atlas.microsoft.com/route/directions/json"
 _REQUEST_TIMEOUT = 30
 
+_AZURE_MODES = {
+    "driving": "car",
+    "walking": "pedestrian",
+    "transit": "bus",
+}
 
-class GoogleMapsDistanceCalculator(IDistanceCalculator):
-    """Calculates travel times via the Google Maps Distance Matrix API.
+
+class AzureMapsDistanceCalculator(IDistanceCalculator):
+    """Calculates travel times via the Azure Maps API.
 
     Args:
-        api_key: Google Maps API key.
+        api_key: Azure Maps subscription key.
         input_dir: Root directory containing house input data.
         output_dir: Root directory for distance output.
         destinations: List of destination configs, each with name, address, modes.
@@ -150,82 +157,120 @@ class GoogleMapsDistanceCalculator(IDistanceCalculator):
         dest_address: str,
         mode: str,
     ) -> TravelTime | None:
-        """Query the Google Maps Distance Matrix API for a single origin-destination pair.
+        """Query Azure Maps for a single origin-destination pair.
 
         Args:
             origin: Origin address string.
             dest_name: Human-readable destination name.
             dest_address: Destination address string.
-            mode: Travel mode (driving, transit, cycling, walking).
+            mode: Travel mode (driving, walking, transit). Cycling is not supported.
 
         Returns:
-            TravelTime result, or None if the API returned an error.
+            TravelTime result, or None if the mode is unsupported or an error occurred.
         """
-        resp = self._call_distance_api(origin, dest_address, mode)
-
-        if resp.get("status") != "OK":
-            logger.error(
-                "Distance Matrix API error for '%s' -> '%s' (%s): %s",
-                origin,
-                dest_name,
-                mode,
-                resp.get("status", "unknown"),
-            )
-            return None
-
-        rows = resp.get("rows", [])
-        if not rows:
-            logger.error("No rows returned for '%s' -> '%s' (%s)", origin, dest_name, mode)
-            return None
-
-        elements = rows[0].get("elements", [])
-        if not elements:
-            logger.error("No elements returned for '%s' -> '%s' (%s)", origin, dest_name, mode)
-            return None
-
-        element = elements[0]
-        if element.get("status") != "OK":
+        azure_mode = _AZURE_MODES.get(mode)
+        if azure_mode is None:
             logger.warning(
-                "Route not found for '%s' -> '%s' (%s): %s",
-                origin,
-                dest_name,
+                "Travel mode '%s' is not supported by Azure Maps — skipping '%s'",
                 mode,
-                element.get("status", "unknown"),
+                dest_name,
             )
             return None
 
-        duration = element["duration"]
-        duration_seconds = duration["value"]
-        duration_text = duration["text"]
+        try:
+            origin_lat, origin_lon = self._geocode(origin)
+            dest_lat, dest_lon = self._geocode(dest_address)
+        except (ValueError, RuntimeError) as exc:
+            logger.error(
+                "Geocode failed for '%s' -> '%s' (%s): %s",
+                origin,
+                dest_name,
+                mode,
+                exc,
+            )
+            return None
 
+        resp = self._call_route_api(origin_lat, origin_lon, dest_lat, dest_lon, azure_mode)
+        routes = resp.get("routes", [])
+        if not routes:
+            logger.error(
+                "No routes returned for '%s' -> '%s' (%s)",
+                origin,
+                dest_name,
+                mode,
+            )
+            return None
+
+        duration_seconds = routes[0]["summary"]["travelTimeInSeconds"]
         return TravelTime(
             destination_name=dest_name,
             destination_address=dest_address,
             mode=mode,
             duration_minutes=duration_seconds // 60,
-            duration_text=duration_text,
+            duration_text=f"{duration_seconds // 60} min",
         )
 
-    def _call_distance_api(self, origin: str, destination: str, mode: str) -> dict:
-        """Make the HTTP call to the Distance Matrix API.
+    def _geocode(self, address: str) -> tuple[float, float]:
+        """Geocode an address to (lat, lon) using Azure Maps Search API.
 
         Isolated for testability — mock this method in tests.
 
         Args:
-            origin: Origin address.
-            destination: Destination address.
-            mode: Travel mode.
+            address: Address string to geocode.
+
+        Returns:
+            (latitude, longitude) tuple.
+
+        Raises:
+            ValueError: If no results are returned for the address.
+        """
+        resp = requests.get(
+            _AZURE_MAPS_SEARCH,
+            params={
+                "api-version": "1.0",
+                "subscription-key": self._api_key,
+                "query": address,
+                "limit": 1,
+            },
+            timeout=_REQUEST_TIMEOUT,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        results = data.get("results", [])
+        if not results:
+            raise ValueError(f"No geocode results for address: {address!r}")
+        position = results[0]["position"]
+        return position["lat"], position["lon"]
+
+    def _call_route_api(
+        self,
+        origin_lat: float,
+        origin_lon: float,
+        dest_lat: float,
+        dest_lon: float,
+        mode: str,
+    ) -> dict:
+        """Request route directions from Azure Maps Route API.
+
+        Isolated for testability — mock this method in tests.
+
+        Args:
+            origin_lat: Origin latitude.
+            origin_lon: Origin longitude.
+            dest_lat: Destination latitude.
+            dest_lon: Destination longitude.
+            mode: Azure Maps travel mode string (car, pedestrian, bus).
 
         Returns:
             Parsed JSON response dict.
         """
         resp = requests.get(
-            _DISTANCE_MATRIX_URL,
+            _AZURE_MAPS_ROUTE,
             params={
-                "origins": origin,
-                "destinations": destination,
-                "mode": mode,
-                "key": self._api_key,
+                "api-version": "1.0",
+                "subscription-key": self._api_key,
+                "query": f"{origin_lat},{origin_lon}:{dest_lat},{dest_lon}",
+                "travelMode": mode,
             },
             timeout=_REQUEST_TIMEOUT,
         )
