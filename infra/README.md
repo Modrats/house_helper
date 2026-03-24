@@ -16,12 +16,19 @@ Provisions the Azure infrastructure for House Helper using Terraform.
 
 ## First-time setup
 
-Run once to create the remote state storage account:
+Run once to create (or reuse) the remote state storage account:
 
 ```bash
 cd infra/
+
+# Option A — create a new dedicated state storage account (default)
 ./bootstrap.sh
+
+# Option B — reuse an existing storage account
+./bootstrap.sh westeurope my-existing-storage-account
 ```
+
+The script is idempotent — safe to re-run. It skips resources that already exist.
 
 Then initialise Terraform (pulls providers, configures remote backend):
 
