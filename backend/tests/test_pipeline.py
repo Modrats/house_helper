@@ -145,4 +145,3 @@ PIPELINE_CHAIN_CASES = [
 def test_pipeline_method_chaining(description: str, expected_filter_count: int) -> None:
     pipeline = FilterPipeline().add_filter(PassAllFilter()).add_filter(PriceFilter())
     assert len(pipeline.filters) == expected_filter_count
-

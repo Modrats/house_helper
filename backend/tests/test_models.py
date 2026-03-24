@@ -499,6 +499,3 @@ HOUSE_STATUS_ENUM_CASES = [
 def test_house_status_values(description: str, expected_values: set) -> None:
     actual = {s.value for s in HouseStatus}
     assert expected_values == actual
-
-
-

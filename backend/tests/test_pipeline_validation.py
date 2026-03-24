@@ -90,9 +90,7 @@ ADD_FILTER_CHAIN_CASES = [
 
 
 @pytest.mark.parametrize("description, expected_filter_count", ADD_FILTER_CHAIN_CASES)
-def test_add_filter_returns_self_for_chaining(
-    description: str, expected_filter_count: int
-) -> None:
+def test_add_filter_returns_self_for_chaining(description: str, expected_filter_count: int) -> None:
     pipeline = FilterPipeline()
     result = pipeline.add_filter(SimpleFilter())
     assert result is pipeline
@@ -178,4 +176,3 @@ EMPTY_PIPELINE_CASES = [
 def test_pipeline_starts_empty(description: str, expected_filter_count: int) -> None:
     pipeline = FilterPipeline()
     assert len(pipeline.filters) == expected_filter_count
-

@@ -24,9 +24,7 @@ class CompleteFilter(IFilter):
     def name(self) -> str:
         return "complete"
 
-    def filter(
-        self, houses: list[House], criteria: dict[str, Any]
-    ) -> dict[str, FilterResult]:
+    def filter(self, houses: list[House], criteria: dict[str, Any]) -> dict[str, FilterResult]:
         return {h.slug: FilterResult() for h in houses}
 
 
@@ -121,4 +119,3 @@ def test_type_hints_work(description: str, expected_callable_count: int) -> None
     callables = [accepts_filter, accepts_data_source]
     assert len(callables) == expected_callable_count
     assert all(callable(c) for c in callables)
-
