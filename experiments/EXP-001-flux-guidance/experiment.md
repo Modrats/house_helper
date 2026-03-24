@@ -69,6 +69,34 @@ A two-part prompt was used for every call:
 - `results/living_room/guidance_05.png` through `guidance_50.png`
 - `evaluate.html` — browser-based side-by-side viewer with star rating
 
+### Kitchen results
+
+Original source photo:
+
+![Kitchen original](../../input_data/houses/ikea_showroom/photos/052b2a2e-6694-41d4-8b0c-d3bf5485fd1c.jpeg)
+
+| guidance = 5 | guidance = 10 | guidance = 15 |
+|---|---|---|
+| ![g05](results/kitchen/guidance_05.png) | ![g10](results/kitchen/guidance_10.png) | ![g15](results/kitchen/guidance_15.png) |
+
+| guidance = 20 | guidance = 30 | guidance = 50 |
+|---|---|---|
+| ![g20](results/kitchen/guidance_20.png) | ![g30](results/kitchen/guidance_30.png) | ![g50](results/kitchen/guidance_50.png) |
+
+### Living room results
+
+Original source photo:
+
+![Living room original](../../input_data/houses/ikea_showroom/photos/9563c53b-4725-4e8a-92f1-3bdeb6dcbf9d.jpeg)
+
+| guidance = 5 | guidance = 10 | guidance = 15 |
+|---|---|---|
+| ![g05](results/living_room/guidance_05.png) | ![g10](results/living_room/guidance_10.png) | ![g15](results/living_room/guidance_15.png) |
+
+| guidance = 20 | guidance = 30 | guidance = 50 |
+|---|---|---|
+| ![g20](results/living_room/guidance_20.png) | ![g30](results/living_room/guidance_30.png) | ![g50](results/living_room/guidance_50.png) |
+
 ### Observations
 
 - **No visible differences between guidance values.** All 12 outputs looked effectively identical regardless of whether guidance was 5 or 50.
