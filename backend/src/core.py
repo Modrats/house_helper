@@ -4,15 +4,17 @@ from __future__ import annotations
 
 import os
 
-from .config import load_storage_paths
+from .config import load_photo_criteria, load_storage_paths
 from .interfaces.data_source import IDataSource
 from .interfaces.filter import IFilter
 from .interfaces.imagineering import IImagineeringService
+from .interfaces.photo_checker import IPhotoChecker
 from .interfaces.room_classifier import IRoomClassifier
 from .services.azure_openai_service import AzureOpenAIService
 from .services.house_repository import HouseRepository
 from .services.imagineering_service import FluxImagineeringService
 from .services.local_storage import LocalStorage
+from .services.photo_checker import VisionPhotoChecker
 from .services.room_classifier import AzureOpenAIRoomClassifier
 from .services.text_filter_service import LLMTextFilterService
 
@@ -109,4 +111,25 @@ def create_llm_text_filter() -> IFilter:
     return LLMTextFilterService(
         llm_service=llm_service,
         output_dir=output_dir,
+    )
+
+
+def create_photo_checker() -> IPhotoChecker:
+    """Create a photo criteria checker wired to the LLM service and storage paths.
+
+    Returns:
+        A configured IPhotoChecker implementation.
+
+    Raises:
+        MissingConfigError: If Azure OpenAI credentials are not configured.
+        KeyError: If photo_criteria section is missing from config.
+    """
+    llm_service = AzureOpenAIService()
+    input_dir, output_dir = load_storage_paths()
+    criteria = load_photo_criteria()
+    return VisionPhotoChecker(
+        llm_service=llm_service,
+        input_dir=input_dir,
+        output_dir=output_dir,
+        criteria=criteria,
     )

@@ -55,3 +55,20 @@ def load_storage_paths(
     input_dir = REPO_ROOT / storage["input_dir"]
     output_dir = REPO_ROOT / storage["output_dir"]
     return input_dir, output_dir
+
+
+def load_photo_criteria(
+    path: Path = DEFAULT_CONFIG_PATH,
+) -> dict[str, dict[str, list[str]]]:
+    """Load photo criteria configuration keyed by room type.
+
+    Each room type maps to ``{"required": [...], "preferred": [...]}``.
+
+    Returns:
+        Dict mapping room type strings to criteria dicts.
+
+    Raises:
+        KeyError: If the photo_criteria section is missing from config.
+    """
+    raw = _load_raw(path)
+    return raw["photo_criteria"]

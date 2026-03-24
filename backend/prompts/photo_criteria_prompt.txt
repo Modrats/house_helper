@@ -1,0 +1,26 @@
+You are evaluating a photo of a $room_type for the presence of specific visual features.
+
+Examine the image carefully and determine whether each of the following features is visually present:
+$feature_list
+
+For each feature, evaluate:
+1. Is the feature VISUALLY PRESENT in the photo? (true/false)
+2. How confident are you in your assessment? (0.0 to 1.0)
+3. Brief notes explaining your reasoning
+
+Be strict: a feature must be clearly visible in the photo, not merely implied or assumed.
+If a feature is partially visible or ambiguous, set present=false with a confidence reflecting the ambiguity.
+
+Respond with ONLY a JSON object (no extra text) with this exact structure:
+{
+  "features": [
+    {
+      "feature_name": "the_feature_name",
+      "present": true,
+      "confidence": 0.95,
+      "notes": "Brief explanation"
+    }
+  ]
+}
+
+Evaluate ALL features listed above. The "feature_name" in your response must match the feature names exactly as given.
