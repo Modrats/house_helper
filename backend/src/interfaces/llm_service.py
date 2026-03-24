@@ -2,7 +2,7 @@
 
 All LLM consumers (classifier, photo checker, criteria evaluator) use
 this interface.  Implementations isolate the actual API call behind a
-method boundary so tests can record/replay via VCR (ADR-004).
+method boundary so tests can record and replay responses.
 """
 
 from __future__ import annotations

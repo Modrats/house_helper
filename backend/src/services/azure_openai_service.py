@@ -1,8 +1,6 @@
 """Azure OpenAI service — concrete ILLMService implementation.
 
-This is the ONLY module that imports ``openai``.  The ``_call_api``
-helper is the single method boundary for VCR-style test mocking
-(ADR-004).
+This is the ONLY module that imports ``openai``.
 """
 
 from __future__ import annotations
@@ -15,46 +13,56 @@ from typing import TypeVar
 from openai import AzureOpenAI
 from pydantic import BaseModel
 
+from ..exceptions import MissingConfigError
 from ..interfaces.llm_service import ILLMService
 
 logger = logging.getLogger(__name__)
 
+# Generic return type for structured LLM responses
 T = TypeVar("T", bound=BaseModel)
+
+_REQUIRED_ENV_VARS = (
+    "AZURE_OPENAI_ENDPOINT",
+    "AZURE_OPENAI_API_KEY",
+    "AZURE_OPENAI_DEPLOYMENT",
+)
+
+
+def load_azure_openai_config() -> dict[str, str]:
+    """Load Azure OpenAI connection details from environment variables.
+
+    Returns:
+        A dict keyed by variable name with their values.
+
+    Raises:
+        MissingConfigError: If any required variable is unset or empty.
+    """
+    values = {name: os.environ.get(name, "") for name in _REQUIRED_ENV_VARS}
+    missing = [name for name, val in values.items() if not val]
+    if missing:
+        raise MissingConfigError(
+            f"Missing required environment variables: {', '.join(missing)}. "
+            "Set them before constructing AzureOpenAIService."
+        )
+    return values
 
 
 class AzureOpenAIService(ILLMService):
     """ILLMService backed by Azure OpenAI.
 
     Reads connection details from environment variables at construction
-    time and raises ``RuntimeError`` immediately if any are missing.
+    time and raises ``MissingConfigError`` immediately if any are missing.
     """
 
     def __init__(self) -> None:
-        endpoint = os.environ.get("AZURE_OPENAI_ENDPOINT")
-        api_key = os.environ.get("AZURE_OPENAI_API_KEY")
-        deployment = os.environ.get("AZURE_OPENAI_DEPLOYMENT")
-
-        missing = [
-            name
-            for name, val in [
-                ("AZURE_OPENAI_ENDPOINT", endpoint),
-                ("AZURE_OPENAI_API_KEY", api_key),
-                ("AZURE_OPENAI_DEPLOYMENT", deployment),
-            ]
-            if not val
-        ]
-        if missing:
-            raise RuntimeError(
-                f"Missing required environment variables: {', '.join(missing)}. "
-                "Set them before constructing AzureOpenAIService."
-            )
+        config = load_azure_openai_config()
 
         self._client = AzureOpenAI(
-            azure_endpoint=endpoint,  # type: ignore[arg-type]
-            api_key=api_key,
+            azure_endpoint=config["AZURE_OPENAI_ENDPOINT"],
+            api_key=config["AZURE_OPENAI_API_KEY"],
             api_version="2024-10-21",
         )
-        self._deployment: str = deployment  # type: ignore[assignment]
+        self._deployment = config["AZURE_OPENAI_DEPLOYMENT"]
 
     # ------------------------------------------------------------------
     # Public API
@@ -96,14 +104,14 @@ class AzureOpenAIService(ILLMService):
         return self._call_api(messages, response_model)
 
     # ------------------------------------------------------------------
-    # VCR mocking boundary (ADR-004)
+    # Private helpers
     # ------------------------------------------------------------------
 
     def _call_api(self, messages: list[dict], response_model: type[T]) -> T:
         """Execute the actual OpenAI API call.
 
         This is the single integration point with the LLM — isolate it
-        for VCR-style test mocking per ADR-004.
+        so tests can record and replay responses.
         """
         schema = response_model.model_json_schema()
         response = self._client.chat.completions.create(

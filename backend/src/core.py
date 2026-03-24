@@ -33,7 +33,7 @@ def create_room_classifier() -> IRoomClassifier:
         A configured IRoomClassifier implementation.
 
     Raises:
-        RuntimeError: If Azure OpenAI credentials are not configured.
+        MissingConfigError: If Azure OpenAI credentials are not configured.
     """
     llm_service = AzureOpenAIService()
     input_dir, output_dir = load_storage_paths()
