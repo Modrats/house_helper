@@ -8,18 +8,14 @@ from __future__ import annotations
 import json
 import logging
 import os
-from typing import TypeVar
 
 from openai import AzureOpenAI
-from pydantic import BaseModel
 
 from ..exceptions import MissingConfigError
 from ..interfaces.llm_service import ILLMService
+from ..models.llm import LLMResponse
 
 logger = logging.getLogger(__name__)
-
-# Generic return type for structured LLM responses
-T = TypeVar("T", bound=BaseModel)
 
 _REQUIRED_ENV_VARS = (
     "AZURE_OPENAI_ENDPOINT",
@@ -73,8 +69,8 @@ class AzureOpenAIService(ILLMService):
         prompt: str,
         image_b64: str,
         media_type: str,
-        response_model: type[T],
-    ) -> T:
+        response_model: type[LLMResponse],
+    ) -> LLMResponse:
         """Send an image to a vision model and return a structured response."""
         messages = [
             {
@@ -97,8 +93,8 @@ class AzureOpenAIService(ILLMService):
     def complete_structured(
         self,
         prompt: str,
-        response_model: type[T],
-    ) -> T:
+        response_model: type[LLMResponse],
+    ) -> LLMResponse:
         """Send a text prompt and return a structured response."""
         messages = [{"role": "user", "content": prompt}]
         return self._call_api(messages, response_model)
@@ -107,7 +103,7 @@ class AzureOpenAIService(ILLMService):
     # Private helpers
     # ------------------------------------------------------------------
 
-    def _call_api(self, messages: list[dict], response_model: type[T]) -> T:
+    def _call_api(self, messages: list[dict], response_model: type[LLMResponse]) -> LLMResponse:
         """Execute the actual OpenAI API call.
 
         This is the single integration point with the LLM — isolate it

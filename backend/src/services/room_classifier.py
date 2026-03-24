@@ -13,11 +13,12 @@ import json
 import logging
 from pathlib import Path
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 from ..interfaces.llm_service import ILLMService
 from ..interfaces.room_classifier import IRoomClassifier
 from ..models.classification import HouseClassifications, PhotoClassification
+from ..models.llm import LLMResponse
 from ..models.room import RoomType
 
 logger = logging.getLogger(__name__)
@@ -38,7 +39,7 @@ CLASSIFICATION_PROMPT = (
 )
 
 
-class _VisionResponse(BaseModel):
+class _VisionResponse(LLMResponse):
     """Lightweight response model for the LLM structured output.
 
     Keeps ``filename`` out of the schema sent to the model — the model
