@@ -5,7 +5,6 @@ from typing import Any
 from src.interfaces.filter import IFilter
 from src.models.house import FilterResult, House, HouseMetadata
 
-
 # ---------------------------------------------------------------------------
 # Shared filter doubles
 # ---------------------------------------------------------------------------

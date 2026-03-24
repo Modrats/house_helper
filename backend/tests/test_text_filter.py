@@ -5,9 +5,7 @@ from typing import NamedTuple
 import pytest
 
 from src.filters.text_filter import TextFilter
-from src.models.house import FilterResult
 from tests.conftest import make_house
-
 
 # ---------------------------------------------------------------------------
 # TextFilter — single-house evaluation
