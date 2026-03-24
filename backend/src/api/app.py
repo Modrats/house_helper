@@ -8,11 +8,12 @@ changing the storage service — not the API surface.
 
 from __future__ import annotations
 
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from ..observability import get_logger
-from ..settings import get_settings
 from .routes import router
 
 logger = get_logger(__name__)
@@ -26,7 +27,7 @@ def create_app() -> FastAPI:
     - API routes (including photo-serving endpoints)
     - OpenAPI metadata
     """
-    settings = get_settings()
+    cors_origins = [o.strip() for o in os.environ["CORS_ORIGINS"].split(",") if o.strip()]
 
     app = FastAPI(
         title="House Helper API",
@@ -41,7 +42,7 @@ def create_app() -> FastAPI:
     # CORS_ORIGINS environment variable (comma-separated list).
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.cors_origins,
+        allow_origins=cors_origins,
         allow_credentials=True,
         allow_methods=["GET"],
         allow_headers=["Content-Type", "Authorization"],
