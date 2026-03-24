@@ -9,7 +9,8 @@ How to decide who handles what.
 | Architecture & design | Gustave | System design, interface contracts, ADRs, migration strategy |
 | Python backend | Zero | Pipeline services, FastAPI endpoints, Azure integrations, data models |
 | React frontend | Agatha | Components, TypeScript, UI/UX, API type generation |
-| Testing & QA | Kovacs | Test suite, fixtures, edge cases, evaluation harness |
+| Testing & QA | Kovacs | Test suite, edge cases, test strategy |
+| Evaluation framework | Dmitri | Evaluator interfaces, metrics models, ground truth fixtures, AML integration |
 | Code review | Gustave | Review PRs, check quality, enforce CLEAN architecture |
 | Testing | Kovacs | Write tests, find edge cases, verify fixes |
 | Scope & priorities | Gustave | What to build next, trade-offs, decisions |

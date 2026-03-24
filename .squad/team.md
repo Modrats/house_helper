@@ -16,6 +16,7 @@
 | Zero | Backend Dev | `.squad/agents/zero/charter.md` | ✅ Active |
 | Agatha | Frontend Dev | `.squad/agents/agatha/charter.md` | ✅ Active |
 | Kovacs | Tester / QA | `.squad/agents/kovacs/charter.md` | ✅ Active |
+| Dmitri | Data Scientist / ML Engineer | `.squad/agents/dmitri/charter.md` | ✅ Active |
 | Scribe | Session Logger | `.squad/agents/scribe/charter.md` | 📋 Silent |
 | Ralph | Work Monitor | — | 🔄 Monitor |
 
