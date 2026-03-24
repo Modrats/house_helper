@@ -23,14 +23,6 @@ class IDataSource(Protocol):
         - AzureStorageService: Reads from Azure Blob + Table Storage
     """
 
-    def list_houses(self) -> list[str]:
-        """List all house slugs available in the data source.
-
-        Returns:
-            List of house slug identifiers.
-        """
-        ...
-
     def get_house(self, slug: str) -> House:
         """Load a house by its slug.
 

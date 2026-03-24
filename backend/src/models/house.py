@@ -82,24 +82,10 @@ class House(BaseModel):
         default_factory=dict,
         description="Results from each filter (filter_name -> passed)",
     )
-    filter_scores: dict[str, float] = Field(
+    # Distance calculation results (destination -> minutes)
+    distances: dict[str, int] = Field(
         default_factory=dict,
-        description="Numeric scores from filters (for ranking)",
-    )
-    excluded_by: str | None = Field(
-        default=None,
-        description="Name of filter that excluded this house (if any)",
-    )
-
-    # Distance calculation results
-    commute_minutes: int | None = Field(
-        default=None,
-        ge=0,
-        description="Calculated commute time in minutes",
-    )
-    commute_destination: str | None = Field(
-        default=None,
-        description="Destination used for commute calculation",
+        description="Travel time to destinations (destination -> minutes)",
     )
 
     model_config = {"frozen": True}
@@ -134,29 +120,15 @@ class House(BaseModel):
         """Whether a balcony was detected."""
         return any(room.room_type == RoomType.BALCONY for room in self.rooms)
 
-    def passed_all_filters(self) -> bool:
-        """Check if the house passed all applied filters."""
-        return all(self.filter_results.values()) if self.filter_results else True
-
     def with_filter_result(self, filter_name: str, passed: bool) -> House:
-        """Return a new House with an additional filter result.
-
-        Since House is frozen, this creates a copy with updated results.
-        """
+        """Return a new House with an additional filter result."""
         new_results = {**self.filter_results, filter_name: passed}
-        return self.model_copy(
-            update={
-                "filter_results": new_results,
-                "excluded_by": filter_name
-                if not passed and self.excluded_by is None
-                else self.excluded_by,
-            }
-        )
+        return self.model_copy(update={"filter_results": new_results})
 
-    def with_filter_score(self, filter_name: str, score: float) -> House:
-        """Return a new House with an additional filter score."""
-        new_scores = {**self.filter_scores, filter_name: score}
-        return self.model_copy(update={"filter_scores": new_scores})
+    def with_distance(self, destination: str, minutes: int) -> House:
+        """Return a new House with an additional distance entry."""
+        new_distances = {**self.distances, destination: minutes}
+        return self.model_copy(update={"distances": new_distances})
 
     def with_status(self, status: HouseStatus) -> House:
         """Return a new House with updated status."""

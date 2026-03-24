@@ -5,10 +5,9 @@ pipeline components. Implementations live in services/.
 """
 
 from .data_source import IDataSource
-from .filter import FilterCriteria, IFilter
+from .filter import IFilter
 
 __all__ = [
     "IFilter",
-    "FilterCriteria",
     "IDataSource",
 ]

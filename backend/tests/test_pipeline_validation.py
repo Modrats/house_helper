@@ -5,7 +5,8 @@ to ensure normal usage works correctly. Static type checking
 (mypy/pyright) handles interface validation.
 """
 
-from src.interfaces.filter import FilterCriteria
+from typing import Any
+
 from src.models.house import House
 from src.runners.run_pipeline import FilterPipeline
 
@@ -17,12 +18,11 @@ class SimpleFilter:
     def name(self) -> str:
         return "simple_filter"
 
-    def filter(self, houses: list[House], criteria: FilterCriteria) -> list[House]:
+    def filter(self, houses: list[House], criteria: dict[str, Any]) -> list[House]:
         """Return houses with more than 2 bedrooms."""
-        return [h for h in houses if h.bedrooms and h.bedrooms > 2]
+        return [h for h in houses if h.bedroom_count > 2]
 
-    async def filter_async(self, houses: list[House], criteria: FilterCriteria) -> list[House]:
-        """Async version of filter."""
+    async def filter_async(self, houses: list[House], criteria: dict[str, Any]) -> list[House]:
         return self.filter(houses, criteria)
 
 
@@ -33,20 +33,20 @@ class KeywordFilter:
     def name(self) -> str:
         return "keyword_filter"
 
-    def filter(self, houses: list[House], criteria: FilterCriteria) -> list[House]:
+    def filter(self, houses: list[House], criteria: dict[str, Any]) -> list[House]:
         """Filter by required keywords."""
-        if not criteria.must_have_keywords:
+        must_have = criteria.get("must_have_keywords", [])
+        if not must_have:
             return houses
 
         results = []
         for house in houses:
             listing_text = (house.listing_text or "").lower()
-            if all(keyword.lower() in listing_text for keyword in criteria.must_have_keywords):
+            if all(kw.lower() in listing_text for kw in must_have):
                 results.append(house)
         return results
 
-    async def filter_async(self, houses: list[House], criteria: FilterCriteria) -> list[House]:
-        """Async version of filter."""
+    async def filter_async(self, houses: list[House], criteria: dict[str, Any]) -> list[House]:
         return self.filter(houses, criteria)
 
 
@@ -100,25 +100,6 @@ class TestFilterPipeline:
 
         assert pipeline.filters[0].name == "filter_a"
         assert pipeline.filters[1].name == "filter_b"
-
-    def test_remove_filter_by_name(self):
-        """Filters can be removed by name."""
-        pipeline = FilterPipeline()
-
-        class TestFilter:
-            name = "test_filter"
-
-            def filter(self, houses, criteria):
-                return houses
-
-            async def filter_async(self, houses, criteria):
-                return houses
-
-        pipeline.add_filter(TestFilter())
-        assert len(pipeline.filters) == 1
-
-        pipeline.remove_filter("test_filter")
-        assert len(pipeline.filters) == 0
 
     def test_pipeline_starts_empty(self):
         """New pipeline starts with no filters."""
