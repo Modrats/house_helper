@@ -13,10 +13,6 @@ location    = "westeurope"
 app_prefix  = "househelper"
 environment = "dev"
 
-# Full image ref — set after first `terraform apply` creates the ACR,
-# then push your image and update this value.
-backend_image = "crhousehelperdev.azurecr.io/backend:latest"
-
 backend_cpu          = 0.5
 backend_memory       = "1Gi"
 backend_min_replicas = 0

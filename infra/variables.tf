@@ -22,8 +22,9 @@ variable "environment" {
 }
 
 variable "backend_image" {
-  description = "Full ACR image reference for the backend container (e.g. househelperacr.azurecr.io/backend:latest). Must be set explicitly — no default."
+  description = "Full ACR image reference for the backend container. Defaults to a public placeholder so the first terraform apply succeeds before any image is pushed."
   type        = string
+  default     = "mcr.microsoft.com/azuredocs/containerapps-helloworld:latest"
 }
 
 variable "backend_cpu" {

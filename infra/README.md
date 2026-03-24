@@ -17,7 +17,6 @@ Install and authenticate these tools before doing anything else:
 # 1. Azure CLI
 # https://learn.microsoft.com/en-us/cli/azure/install-azure-cli
 az login
-az account set --subscription "Visual Studio Enterprise Subscription"
 
 # Confirm the right subscription is active
 az account show --query "{name:name, id:id}" -o table
@@ -104,8 +103,6 @@ Open `terraform.tfvars` and set:
 subscription_id = "YOUR-SUBSCRIPTION-ID-HERE"
 ```
 
-Leave `backend_image` as-is for now — you'll update it after the ACR exists (Step 5).
-
 `terraform.tfvars` is gitignored. **Never commit it.**
 
 ---
@@ -135,18 +132,48 @@ Every subsequent `plan` or `apply` reads from the remote state to compute what c
 
 ### Step 5 — Push a backend image and redeploy
 
-The Container App needs a real image in the registry:
+Terraform provisions the Container App with a public placeholder image. To deploy your real backend, just run:
 
 ```bash
-# Log in to the registry
-az acr login --name crhousehelperdev
+# From the repo root
+make deploy-backend
+```
 
-# Build and push from the repo root
-docker build -t crhousehelperdev.azurecr.io/backend:latest ./backend
-docker push crhousehelperdev.azurecr.io/backend:latest
+This builds, tags with the git SHA, pushes to ACR, and updates the Container App image via `az containerapp update` — no Terraform involved. Terraform owns infrastructure; `make deploy-backend` owns deployments.
 
-# Re-apply (backend_image in terraform.tfvars already points here)
-terraform apply -var-file=terraform.tfvars
+To use a custom ACR or tag:
+
+```bash
+make deploy-backend ACR=myregistry.azurecr.io
+make deploy-backend IMAGE_TAG=v1.2.3
+```
+
+To roll back, re-run with the SHA of any previously pushed image:
+
+```bash
+make deploy-backend IMAGE_TAG=<old-sha>
+```
+
+---
+
+### Step 6 — Deploy the frontend
+
+The frontend is an Azure Static Web App. The `deploy-frontend` Make target builds the Vite app and deploys it using the SWA CLI:
+
+```bash
+# From the repo root
+make deploy-frontend
+```
+
+This will:
+1. Run `pnpm build` in `frontend/`
+2. Fetch the deployment token from the Static Web App via `az staticwebapp secrets list`
+3. Deploy `frontend/dist/` to the `production` environment
+
+To target a different SWA name or resource group:
+
+```bash
+make deploy-frontend SWA_NAME=stapp-househelper-staging SWA_RG=rg-househelper-staging
 ```
 
 ---
