@@ -1,0 +1,32 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./input_data:/app/input_data
+      - ./outputs:/app/outputs
+      - ./backend/config:/app/config
+    env_file:
+      - .env
+    networks:
+      - house-helper
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: /api
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - house-helper
+
+networks:
+  house-helper:
+    driver: bridge
