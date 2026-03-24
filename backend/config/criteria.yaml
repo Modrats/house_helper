@@ -21,6 +21,15 @@ text_filter:
     - "highway"
     - "industrial"
 
+distance:
+  destinations:
+    - name: "Amsterdam Central"
+      address: "Amsterdam Centraal, Amsterdam"
+      modes: ["transit", "cycling"]
+    - name: "Office"
+      address: "Zuidas, Amsterdam"
+      modes: ["driving", "transit"]
+      
 llm_text_filter:
   p1_criteria:
     - "has a private garden or outdoor space"
