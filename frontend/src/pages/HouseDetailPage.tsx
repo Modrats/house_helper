@@ -33,6 +33,17 @@ export function HouseDetailPage(): ReactNode {
         <span aria-current="page">{house ? formatAddress(house) : `House ${houseId}`}</span>
       </nav>
 
+      <h2>House Details</h2>
+
+      <div className="house-detail__actions">
+        <Link
+          to={`/house/${houseId}/gallery`}
+          className="button button--primary"
+        >
+          View Photo Gallery
+        </Link>
+      </div>
+
       {isLoading && (
         <div className="house-detail house-detail--loading">
           <div className="house-detail__screenshot-skeleton" aria-busy="true" />
@@ -42,7 +53,6 @@ export function HouseDetailPage(): ReactNode {
 
       {error && (
         <div className="house-detail__error" role="alert">
-          <h2>Could not load house</h2>
           <p>{error.message}</p>
           <Link to="/">Return to browse</Link>
         </div>
@@ -63,7 +73,7 @@ export function HouseDetailPage(): ReactNode {
 
           {/* Header */}
           <header className="house-detail__header">
-            <h2 className="house-detail__address">{formatAddress(house)}</h2>
+            <p className="house-detail__address">{formatAddress(house)}</p>
             <p className="house-detail__price">{formatPrice(house.listing.price)}</p>
           </header>
 
@@ -108,14 +118,8 @@ export function HouseDetailPage(): ReactNode {
           )}
 
           {/* Actions */}
-          <div className="house-detail__actions">
-            <Link
-              to={`/house/${houseId}/gallery`}
-              className="button button--primary"
-            >
-              View Photo Gallery →
-            </Link>
-            {house.sourceUrl && (
+          {house.sourceUrl && (
+            <div className="house-detail__source">
               <a
                 href={house.sourceUrl}
                 target="_blank"
@@ -124,8 +128,8 @@ export function HouseDetailPage(): ReactNode {
               >
                 View original listing ↗
               </a>
-            )}
-          </div>
+            </div>
+          )}
         </article>
       )}
     </div>
