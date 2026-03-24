@@ -51,3 +51,15 @@ Decomposed Priority 1 work into 16 GitHub issues across 3 workstreams:
 3. **`run_llm_judge` returns `llm_judge_skipped` (passed=True) when no outputs exist** — signals "not ready yet" vs "evaluated and failed".
 4. **`write_summary` is public** — needed by CLI, tests, and future pipeline runners.
 5. **VCR cassettes deferred; static mocks used for LLM judge tests** — per ADR-004, cassettes require a real API key not available in CI. `unittest.mock` + env var mocking covers error-path tests. Cassette structure (`tests/fixtures/cassettes/`) is in place for future recording.
+
+---
+
+### 2026-03-24: All agents MUST use PRs — no direct pushes to main
+
+**By:** Coordinator | **Requested by:** Terri Modrakowski
+
+- Every agent is prohibited from pushing directly to `main`.
+- Domain work (code, tests, config, docs) MUST go through a feature branch → PR → review → merge.
+- **Scribe's git commit scope is strictly `.squad/` only.** Never stage or commit files outside `.squad/`.
+- Scribe MAY open PRs, but only for `.squad/` documentation updates — never for domain work.
+- Violation: Scribe committed evaluation source files directly to main (2026-03-24). Rebased and corrected.

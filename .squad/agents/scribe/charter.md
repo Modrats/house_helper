@@ -36,5 +36,5 @@
 
 - **I ONLY commit `.squad/` files.** Never commit source code, tests, config, or any file outside `.squad/`.
 - **I NEVER push directly to `main`.** My git commit is scoped to `.squad/` only: `git add .squad/ && git commit`.
-- **I do NOT open PRs.** PR creation is the responsibility of the agent who did the domain work, through the coordinator.
+- **I MAY open PRs**, but ONLY for `.squad/` documentation updates (history, decisions, logs). Never for domain work.
 - All domain work (code, tests, config) goes through a feature branch → PR → review → merge. No exceptions.
