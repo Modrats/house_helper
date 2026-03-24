@@ -48,3 +48,15 @@
 - Sample destinations (Amsterdam Central, Office) added to `config/criteria.yaml`.
 - Tests: 21 parametrised cases, NamedTuple + `@pytest.mark.parametrize`. Mocks `requests.get` at the service module boundary.
 - `House` model already has `distances: dict[str, int]` and `with_distance()` — ready for pipeline integration.
+
+### 2026-03-24: LLM text filter service (Issue #8, PR #53)
+
+- **LLMTextFilterService** at `services/text_filter_service.py` — implements `IFilter`, uses `ILLMService.complete_structured()` with `_TextAnalysisResult` response model.
+- **Internal models** `_CriterionEval` and `_TextAnalysisResult` — private to the service, extend `LLMResponse`.
+- **Public models** `TextAnalysis` and `CriterionResult` at `models/text_analysis.py` — frozen Pydantic models. `TextAnalysis.to_filter_result()` converts evaluations to `FilterResult`.
+- **Prompt template** at `prompts/text_analysis_prompt.txt` — uses `string.Template` with `$listing_text` and `$criteria_list` variables.
+- **Caching** via `text_analysis.json` per house slug + SHA-256 criteria hash for drift detection. Same idempotency pattern as distance calculator.
+- **Factory** `create_llm_text_filter()` in `core.py` — returns `IFilter`.
+- **Config** — `llm_text_filter` section in `criteria.yaml` with `p1_criteria`, `p2_criteria`, `excluded_criteria` (natural language, not keywords).
+- **Category resolution** — `_resolve_category()` maps LLM-returned criterion names back to their config category (p1/p2/excluded). Falls back to "p2" if LLM returns an unrecognized criterion.
+- Tests: 20 parametrised cases. Mock at `ILLMService` boundary (mock `complete_structured`), no real API calls per ADR-004.
