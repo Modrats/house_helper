@@ -2,6 +2,8 @@
 
 This module contains the evaluation framework for the House Helper pipeline — ground truth datasets, evaluators, and metrics for each LLM-powered stage.
 
+See the [evaluation `__init__.py`](__init__.py) for the public API surface.
+
 ---
 
 ## Overview
