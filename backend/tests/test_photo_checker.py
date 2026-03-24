@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from src.config import load_photo_criteria
+from src.config import ConfigLoader
 from src.interfaces.llm_service import ILLMService
 from src.models.house import FilterResult
 from src.models.llm import LLMResponse
@@ -419,7 +419,7 @@ def test_photo_criteria_result_json_roundtrip() -> None:
 
 
 def test_load_photo_criteria_from_default_config() -> None:
-    criteria = load_photo_criteria()
+    criteria = ConfigLoader().photo_criteria()
     assert "kitchen" in criteria
     assert "required" in criteria["kitchen"]
     assert "preferred" in criteria["kitchen"]
@@ -430,7 +430,7 @@ def test_load_photo_criteria_missing_section(tmp_path: Path) -> None:
     config_file = tmp_path / "empty.yaml"
     config_file.write_text("storage:\n  input_dir: x\n  output_dir: y\n")
     with pytest.raises(KeyError):
-        load_photo_criteria(config_file)
+        ConfigLoader(config_file).photo_criteria()
 
 
 # ---------------------------------------------------------------------------

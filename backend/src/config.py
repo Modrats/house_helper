@@ -1,4 +1,4 @@
-"""Load pipeline configuration from YAML."""
+"""Load pipeline configuration from a YAML file or cloud source."""
 
 from __future__ import annotations
 
@@ -7,68 +7,53 @@ from typing import Any
 
 import yaml
 
-DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent.parent / "config" / "criteria.yaml"
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+_REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+_DEFAULT_YAML = Path(__file__).resolve().parent.parent / "config" / "criteria.yaml"
 
 
-def _load_raw(path: Path = DEFAULT_CONFIG_PATH) -> dict[str, Any]:
-    """Load and return the raw YAML config."""
-    with open(path) as f:
-        return yaml.safe_load(f)
+class ConfigLoader:
+    """Loads pipeline configuration from a YAML file.
 
+    Instantiate once and call the accessor methods.  To swap in a cloud-backed
+    source (e.g. Azure App Configuration), subclass or replace this with a
+    compatible implementation that exposes the same methods.
 
-def load_criteria(path: Path = DEFAULT_CONFIG_PATH) -> dict[str, Any]:
-    """Load filter criteria from YAML config.
-
-    The YAML structure maps filter names to their criteria dicts.
-    The 'storage' section is excluded — only filter sections are merged.
-
-    Returns:
-        A flat dict merging all filter sections, keyed by criteria field name.
+    Args:
+        path: Path to the YAML config file.  Defaults to the bundled
+            ``config/criteria.yaml`` relative to this source tree.
     """
-    raw = _load_raw(path)
 
-    criteria: dict[str, Any] = {}
-    for key, section in raw.items():
-        if key == "storage":
-            continue
-        if isinstance(section, dict):
-            criteria.update(section)
-    return criteria
+    def __init__(self, path: Path | None = None) -> None:
+        self._path = path or _DEFAULT_YAML
+        self._data: dict[str, Any] | None = None
 
+    def _load(self) -> dict[str, Any]:
+        if self._data is None:
+            with open(self._path) as fh:
+                self._data = yaml.safe_load(fh)
+        return self._data
 
-def load_storage_paths(
-    path: Path = DEFAULT_CONFIG_PATH,
-) -> tuple[Path, Path]:
-    """Load input and output directory paths from config.
+    def criteria(self) -> dict[str, Any]:
+        """Return merged filter criteria (all non-storage YAML sections)."""
+        raw = self._load()
+        result: dict[str, Any] = {}
+        for key, section in raw.items():
+            if key != "storage" and isinstance(section, dict):
+                result.update(section)
+        return result
 
-    Paths in YAML are relative to the repo root.
+    def storage_paths(self) -> tuple[Path, Path]:
+        """Return (input_dir, output_dir) as absolute Paths."""
+        storage = self._load()["storage"]
+        return (
+            _REPO_ROOT / storage["input_dir"],
+            _REPO_ROOT / storage["output_dir"],
+        )
 
-    Returns:
-        Tuple of (input_dir, output_dir) as absolute Paths.
+    def distance_config(self) -> list[dict[str, str | list[str]]]:
+        """Return the list of distance destinations."""
+        return self._load()["distance"]["destinations"]
 
-    Raises:
-        KeyError: If the storage section is missing from config.
-    """
-    raw = _load_raw(path)
-    storage = raw["storage"]
-    input_dir = REPO_ROOT / storage["input_dir"]
-    output_dir = REPO_ROOT / storage["output_dir"]
-    return input_dir, output_dir
-
-
-def load_photo_criteria(
-    path: Path = DEFAULT_CONFIG_PATH,
-) -> dict[str, dict[str, list[str]]]:
-    """Load photo criteria configuration keyed by room type.
-
-    Each room type maps to ``{"required": [...], "preferred": [...]}``.
-
-    Returns:
-        Dict mapping room type strings to criteria dicts.
-
-    Raises:
-        KeyError: If the photo_criteria section is missing from config.
-    """
-    raw = _load_raw(path)
-    return raw["photo_criteria"]
+    def photo_criteria(self) -> dict[str, dict[str, list[str]]]:
+        """Return photo criteria keyed by room type."""
+        return self._load()["photo_criteria"]
