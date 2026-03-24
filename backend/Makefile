@@ -1,4 +1,4 @@
-.PHONY: help install lint test format dev pipeline clean eval
+.PHONY: help install lint test format dev pipeline clean
 
 # Default target
 help:
@@ -16,7 +16,6 @@ help:
 	@echo "  make dev        Start FastAPI dev server"
 	@echo "  make pipeline   Run the filter pipeline"
 	@echo "  make clean      Remove cache and build artifacts"
-	@echo "  make eval       Run all evaluators (set COMPONENT=name to run one)"
 
 # Install dependencies using uv (reads pyproject.toml)
 install:
@@ -43,14 +42,6 @@ dev:
 # Run filter pipeline against input_data houses
 pipeline:
 	uv run python -m src.run
-
-# Run all evaluators (set COMPONENT=name to run one)
-eval:
-ifdef COMPONENT
-	uv run python -m src.evaluation.run_evals --component $(COMPONENT)
-else
-	uv run python -m src.evaluation.run_evals
-endif
 
 # Clean artifacts
 clean:
