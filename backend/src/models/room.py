@@ -53,10 +53,10 @@ class Photo(BaseModel):
         description="Classification confidence score",
     )
 
-    # Feature detection (populated after photo checker)
+    # Features found while evaluating criteria (populated by the criteria evaluator).
     detected_features: list[str] = Field(
         default_factory=list,
-        description="Features detected in the photo (e.g., 'natural_light', 'modern_kitchen')",
+        description="Features observed while evaluating criteria (e.g., 'dishwasher_present', 'natural_light')",
     )
 
     # Imagineering outputs

@@ -1,0 +1,92 @@
+[
+  {
+    "_comment": "Criteria evaluation ground truth fixtures. Each record matches CriteriaEvaluationSample: photos (list of str paths), listing_text (str), photo_criteria ({key: description} checked visually), text_criteria ({key: description} checked from text), expected ({key: bool}). Keywords from backend/config/criteria.yaml."
+  },
+  {
+    "photos": [
+      "input_data/houses/ikea_showroom/photos/052b2a2e-6694-41d4-8b0c-d3bf5485fd1c.jpeg",
+      "input_data/houses/ikea_showroom/photos/9563c53b-4725-4e8a-92f1-3bdeb6dcbf9d.jpeg"
+    ],
+    "listing_text": "Ikea kitchens come with a dishwasher and a modern oven/microwave. There is a garden somewhere.",
+    "photo_criteria": {
+      "dishwasher": "Does the kitchen contain a visible dishwasher?"
+    },
+    "text_criteria": {
+      "garden": "Does the listing mention a garden?",
+      "highway": "Does the listing mention proximity to a highway?"
+    },
+    "expected": {
+      "dishwasher": true,
+      "garden": true,
+      "highway": false
+    }
+  },
+  {
+    "photos": [],
+    "listing_text": "Commercial property next to the highway in an industrial zone. Large open floor plan with no outdoor space.",
+    "photo_criteria": {
+      "dishwasher": "Does the kitchen contain a visible dishwasher?"
+    },
+    "text_criteria": {
+      "garden": "Does the listing mention a garden?",
+      "highway": "Does the listing mention proximity to a highway?"
+    },
+    "expected": {
+      "dishwasher": false,
+      "garden": false,
+      "highway": true
+    }
+  },
+  {
+    "photos": [],
+    "listing_text": "Spacious detached house with a private garden and double garage. Fully fitted kitchen with ample storage.",
+    "photo_criteria": {},
+    "text_criteria": {
+      "garden": "Does the listing mention a garden?",
+      "garage": "Does the listing mention a garage?",
+      "highway": "Does the listing mention proximity to a highway?"
+    },
+    "expected": {
+      "garden": true,
+      "garage": true,
+      "highway": false
+    }
+  },
+  {
+    "photos": [
+      "input_data/houses/ikea_showroom/photos/9563c53b-4725-4e8a-92f1-3bdeb6dcbf9d.jpeg"
+    ],
+    "listing_text": "Renovated terrace house adjacent to the highway. Spacious open-plan kitchen with modern fittings. No garden.",
+    "photo_criteria": {
+      "dishwasher": "Does the kitchen contain a visible dishwasher?"
+    },
+    "text_criteria": {
+      "garden": "Does the listing mention a garden?",
+      "highway": "Does the listing mention proximity to a highway?"
+    },
+    "expected": {
+      "dishwasher": true,
+      "garden": false,
+      "highway": true
+    }
+  },
+  {
+    "photos": [
+      "input_data/houses/ikea_showroom/photos/052b2a2e-6694-41d4-8b0c-d3bf5485fd1c.jpeg",
+      "input_data/houses/ikea_showroom/photos/9563c53b-4725-4e8a-92f1-3bdeb6dcbf9d.jpeg"
+    ],
+    "listing_text": "Beautiful family home with a sunny garden and single garage. Kitchen has been recently updated.",
+    "photo_criteria": {
+      "dishwasher": "Does the kitchen contain a visible dishwasher?"
+    },
+    "text_criteria": {
+      "garden": "Does the listing mention a garden?",
+      "industrial": "Does the listing mention an industrial area or zone?"
+    },
+    "expected": {
+      "dishwasher": true,
+      "garden": true,
+      "industrial": false
+    }
+  }
+]
