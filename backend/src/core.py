@@ -87,6 +87,9 @@ def create_distance_calculator() -> IDistanceCalculator:
         input_dir=input_dir,
         output_dir=output_dir,
         destinations=destinations,
+    )
+
+
 def create_imagineering_service() -> IImagineeringService:
     """Create an imagineering service wired to FLUX.2-pro and storage paths.
 
