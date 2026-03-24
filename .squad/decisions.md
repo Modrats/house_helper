@@ -107,6 +107,41 @@ If a lint check, type check, or test fails, agents MUST fix the issue — never 
 
 ---
 
+### 2026-03-24: IDataSource / HouseRepository architecture (PR #41 review)
+
+**By:** Zero | **Reviewed by:** Terri Modrakowski | **Branch:** `squad/13-fastapi-endpoints`
+
+1. **`IDataSource` is a generic CRUD interface** — defines `read_json`, `write_json`, `list_keys`, `read_bytes`, `exists`. No domain knowledge. Adding a cloud backend = implement 5 methods.
+2. **`HouseRepository` owns all house-domain storage logic** — path conventions, drift detection (`_criteria_match`, `_restore_filter_state`), and pipeline-resume logic at `backend/src/services/house_repository.py`.
+3. **Criteria drift detection lives in `HouseRepository`, not `LocalStorage`** — storage layer is pure CRUD; business logic belongs in the repository.
+4. **Photos served via API endpoints, not static mounts** — `GET /api/houses/{slug}/photos/{filename}` and `GET /api/houses/{slug}/imagineered/{filename}` replace `StaticFiles` mounts.
+5. **OWASP A05 CORS rule** — `allow_headers=["*"]` is rejected by browsers when `allow_credentials=True`. Always use explicit allowlist: `["Content-Type", "Authorization"]`.
+
+---
+
+### 2026-03-24: Eval harness code review — 11 gaps found (assigned to Zero)
+
+**By:** Gustave (Lead / Architect) | **Requested by:** Terri Modrakowski | **Assignee:** Zero
+
+Gustave reviewed the evaluation harness skeleton (Issue #33) and identified 11 concrete gaps. Architecture is sound; all gaps are direct fixes, not redesigns.
+
+Key gaps:
+- **GAP-1:** Output dir `classification/` must be `classifier/` to match `plan.md` spec.
+- **GAP-2:** `criteria_result.json` checked at slug root; must be `criteria/criteria_result.json`.
+- **GAP-3:** `_check_valid_json` must reject non-dict JSON roots — callers crash on `.keys()` for arrays.
+- **GAP-4:** `ConsistencyJudgment` is dead code — implement `_evaluate_consistency` or remove and update docstring.
+- **GAP-5:** `run_llm_judge` docstring falsely claims batching — remove or mark as future work.
+- **GAP-6:** `_DEFAULT_API_VERSION` violates the no-hardcoded-defaults team decision — use `os.environ["AZURE_OPENAI_API_VERSION"]` and raise on missing.
+- **GAP-7:** Silent `except Exception` with hardcoded fallback paths in `llm_judge.py` and `deterministic.py` — let imports fail loudly.
+- **GAP-8 through GAP-11:** `write_summary` not exported from `__init__.py`; additional schema and coverage gaps.
+
+---
+
+### 2026-03-24: Test quality checklist — Issue #45
+
+**By:** Gustave (Lead) | **Requested by:** Terri Modrakowski
+
+Filed GitHub issue #45 — "chore: evaluate and improve test extensibility, format, and quality" as a living team checklist. Covers: coverage and completeness (90% gate), quality over quantity, naming and readability (AAA structure), design patterns (mocks/fakes, setup/teardown). Gaps found produce follow-up issues or PRs. No `chore` label on the repo; issue created without it.
 ### 2026-03-24: IaC scope reduced to Container Apps + Static Web Apps
 
 **By:** Terri Modrakowski (directive)
@@ -141,3 +176,31 @@ If a lint check, type check, or test fails, agents MUST fix the issue — never 
 1. **CORS headers must be explicit when credentials are enabled** — `allow_headers=["*"]` rejected alongside `allow_credentials=True`. Using `["Content-Type", "Authorization"]` instead. (OWASP A05)
 2. **`IDataSource` is a generic CRUD interface** — defines `read_json`, `write_json`, `list_keys`, `read_bytes`, `exists`. No domain concepts (no houses, rooms, or pipeline stages) at interface level.
 3. **`HouseRepository` owns all house-domain storage logic** — wraps `IDataSource`; provides `load_houses`, `save_filter_results`, `list_houses`, `get_house`, `get_photos`, `get_room_classifications`, `get_criteria_results`, `get_imagineered_photos`, `get_photo_bytes`, `get_imagineered_photo_bytes`.
+4. **Criteria drift detection moved from `LocalStorage` → `HouseRepository`** — `_criteria_match` and `_restore_filter_state` are business logic, not storage logic.
+5. **Photos served via API endpoints, not static directory mounts** — `GET /api/houses/{slug}/photos/{filename}` and `GET /api/houses/{slug}/imagineered/{filename}`. `StaticFiles` mounts removed from `app.py`.
+6. **`Settings` reads all env vars without defaults** — raises `KeyError` if missing. Per team decision: no hardcoded defaults for env vars.
+
+---
+
+### 2026-03-24: Switch Distance Calculator from Google Maps to Azure Maps
+
+**By:** Zero (Backend Dev) | **PR:** #52 (`squad/11-distance-calculator`) | **Requested by:** Terri Modrakowski
+
+Replace `GoogleMapsDistanceCalculator` with `AzureMapsDistanceCalculator`. Azure Maps is already in the Azure subscription — no new dependency or cost centre needed.
+
+Two API calls per route: geocode (`atlas.microsoft.com/search/address/json`) then route (`atlas.microsoft.com/route/directions/json`). Environment variable: `AZURE_MAPS_KEY`.
+
+| App mode | Azure Maps `travelMode` |
+|----------|------------------------|
+| driving  | car |
+| walking  | pedestrian |
+| transit  | bus |
+| cycling  | unsupported — log warning, return `None` |
+
+---
+
+### 2026-03-24: ConfigLoader class for pipeline configuration
+
+**By:** Zero (Backend Dev) | **PR:** #57
+
+Replace scattered `load_*()` functions and `_load_raw()` helper with a `ConfigLoader` class. YAML is parsed at most once per instance (lazy + cached). Public module-level constants (`DEFAULT_CONFIG_PATH`, `REPO_ROOT`) made private (`_DEFAULT_YAML`, `_REPO_ROOT`). No backward-compat wrappers — callers (`core.py`, `run.py`) updated directly. `ConfigLoader` is the swappable unit for future cloud-backed config sources.
