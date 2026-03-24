@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -12,6 +11,7 @@ from ..metrics import (
     EvaluationReport,
     MetricResult,
     compute_macro_precision_recall,
+    count_multiclass_outcomes,
 )
 from ..models import PhotoClassificationSample
 
@@ -42,39 +42,27 @@ class PhotoClassifierEvaluator(IEvaluator):
     ) -> EvaluationReport:
         actual_map: dict[str, Photo] = {Path(p.path).name: p for p in actual}
 
-        total = 0
-        correct = 0
-        tp: dict[RoomType, int] = defaultdict(int)
-        fp: dict[RoomType, int] = defaultdict(int)
-        fn: dict[RoomType, int] = defaultdict(int)
-        calibration_pass = 0
-        calibration_total = 0
+        # Resolve each sample to its predicted room (None when photo is missing or unclassified)
+        photos = [actual_map.get(Path(s.photo_path).name) for s in samples]
+        predicted_rooms: list[RoomType | None] = [
+            p.room_type if p is not None else None for p in photos
+        ]
 
-        for sample in samples:
-            total += 1
-            photo = actual_map.get(Path(sample.photo_path).name)
-            expected = sample.expected_room_type
-
-            if photo is None or photo.room_type is None:
-                fn[expected] += 1
-                calibration_total += 1
-                continue
-
-            predicted = photo.room_type
-            calibration_total += 1
-
-            if predicted == expected:
-                correct += 1
-                tp[expected] += 1
-                conf = photo.confidence or 0.0
-                if conf >= sample.expected_confidence_min:
-                    calibration_pass += 1
-            else:
-                fn[expected] += 1
-                fp[predicted] += 1
-
+        total, correct, tp, fp, fn = count_multiclass_outcomes(
+            zip(predicted_rooms, (s.expected_room_type for s in samples))
+        )
         precision, recall = compute_macro_precision_recall(tp, fp, fn, COMMON_ROOMS)
-        calibration = calibration_pass / calibration_total if calibration_total > 0 else 0.0
+
+        # Calibration: fraction of all samples that are both correctly classified
+        # and meet the per-sample confidence threshold
+        calibration_pass = sum(
+            1
+            for photo, sample, predicted in zip(photos, samples, predicted_rooms)
+            if predicted == sample.expected_room_type
+            and photo is not None
+            and (photo.confidence or 0.0) >= sample.expected_confidence_min
+        )
+        calibration = calibration_pass / total if total > 0 else 0.0
 
         metrics: list[MetricResult] = [
             AccuracyMetric(correct=correct, total=total),

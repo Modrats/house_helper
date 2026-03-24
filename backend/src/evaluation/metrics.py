@@ -9,10 +9,13 @@ Standalone stat functions are pure and reusable across all evaluators.
 
 from __future__ import annotations
 
+from collections import defaultdict
 from datetime import datetime
-from typing import Any
+from typing import Any, Iterable, TypeVar
 
 from pydantic import BaseModel, Field, computed_field, field_validator, model_validator
+
+_T = TypeVar("_T")
 
 # ---------------------------------------------------------------------------
 # Standalone stat functions
@@ -41,6 +44,57 @@ def compute_macro_precision_recall(
     p = sum(precision_vals) / len(precision_vals) if precision_vals else 0.0
     r = sum(recall_vals) / len(recall_vals) if recall_vals else 0.0
     return p, r
+
+
+def count_binary_outcomes(
+    pairs: Iterable[tuple[bool, bool]],
+) -> tuple[int, int, int, int]:
+    """Tally classification outcomes from (predicted, expected) bool pairs.
+
+    Returns ``(total, correct, positives, false_negatives)`` where:
+
+    * ``total`` — number of samples evaluated
+    * ``correct`` — samples where ``predicted == expected``
+    * ``positives`` — samples where ``expected`` is ``True``
+    * ``false_negatives`` — samples where ``expected`` is ``True`` but ``predicted`` is ``False``
+    """
+    total = correct = positives = false_negatives = 0
+    for predicted, expected in pairs:
+        total += 1
+        if predicted == expected:
+            correct += 1
+        if expected:
+            positives += 1
+            if not predicted:
+                false_negatives += 1
+    return total, correct, positives, false_negatives
+
+
+def count_multiclass_outcomes(
+    pairs: Iterable[tuple[_T | None, _T]],
+) -> tuple[int, int, dict[_T, int], dict[_T, int], dict[_T, int]]:
+    """Tally multi-class classification outcomes from (predicted, expected) pairs.
+
+    A ``None`` predicted value is treated as a false negative (e.g. missing prediction).
+
+    Returns ``(total, correct, tp, fp, fn)`` where ``tp``/``fp``/``fn`` are
+    per-class counts suitable for passing to :func:`compute_macro_precision_recall`.
+    """
+    total = correct = 0
+    tp: dict[_T, int] = defaultdict(int)
+    fp: dict[_T, int] = defaultdict(int)
+    fn: dict[_T, int] = defaultdict(int)
+    for predicted, expected in pairs:
+        total += 1
+        if predicted is None:
+            fn[expected] += 1
+        elif predicted == expected:
+            correct += 1
+            tp[expected] += 1
+        else:
+            fn[expected] += 1
+            fp[predicted] += 1
+    return total, correct, tp, fp, fn
 
 
 # ---------------------------------------------------------------------------

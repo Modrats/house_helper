@@ -4,7 +4,13 @@ from datetime import datetime, timezone
 
 from ..eval_config import load_thresholds
 from ..interfaces import IEvaluator
-from ..metrics import AccuracyMetric, EvaluationReport, MetricResult, compute_fnr
+from ..metrics import (
+    AccuracyMetric,
+    EvaluationReport,
+    MetricResult,
+    compute_fnr,
+    count_binary_outcomes,
+)
 from ..models import CriteriaEvaluationSample
 
 
@@ -22,23 +28,13 @@ class CriteriaEvaluator(IEvaluator):
         llm_judge_score: float | None = None,
         **kwargs: object,
     ) -> EvaluationReport:
-        total_keys = 0
-        correct_keys = 0
-        should_be_true = 0
-        false_negatives = 0
-
-        for sample, actual_verdicts in zip(samples, actual):
-            for key, exp_val in sample.expected.items():
-                actual_val = actual_verdicts.get(key, False)
-                total_keys += 1
-                if actual_val == exp_val:
-                    correct_keys += 1
-                if exp_val:
-                    should_be_true += 1
-                    if not actual_val:
-                        false_negatives += 1
-
-        fnr = compute_fnr(false_negatives, should_be_true)
+        pairs = (
+            (actual_verdicts.get(key, False), exp_val)
+            for sample, actual_verdicts in zip(samples, actual)
+            for key, exp_val in sample.expected.items()
+        )
+        total_keys, correct_keys, positives, false_negatives = count_binary_outcomes(pairs)
+        fnr = compute_fnr(false_negatives, positives)
 
         metrics: list[MetricResult] = [
             AccuracyMetric(correct=correct_keys, total=total_keys),
