@@ -1,90 +1,31 @@
-"""IFilter protocol for house filtering pipeline.
+"""IFilter abstract base class for house filtering pipeline.
 
-Filters take a list of houses and criteria, returning filtered results.
+Filters take a list of houses and return filtered results.
 Each filter implementation focuses on a single concern (text matching,
 room classification, photo checking, distance, etc.).
+
+Filters are criteria-agnostic. Criteria are defined in YAML config
+and passed as a dict to each filter.
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Protocol, runtime_checkable
+from abc import ABC, abstractmethod
+from typing import Any
 
-from pydantic import BaseModel, Field
-
-if TYPE_CHECKING:
-    from ..models.house import House
+from ..models.house import FilterResult, House
 
 
-class FilterCriteria(BaseModel):
-    """Criteria for filtering houses.
-
-    This is a base criteria model that can be extended by specific
-    filter implementations. Contains common filtering parameters.
-    """
-
-    # Text-based criteria
-    must_have_keywords: list[str] = Field(
-        default_factory=list,
-        description="Keywords that must appear in listing text",
-    )
-    must_not_have_keywords: list[str] = Field(
-        default_factory=list,
-        description="Keywords that must NOT appear in listing text",
-    )
-
-    # Room requirements
-    min_bedrooms: int | None = Field(
-        default=None,
-        ge=0,
-        description="Minimum number of bedrooms",
-    )
-    required_room_types: list[str] = Field(
-        default_factory=list,
-        description="Room types that must be present (e.g., 'kitchen', 'bathroom')",
-    )
-
-    # Location criteria
-    max_commute_minutes: int | None = Field(
-        default=None,
-        ge=0,
-        description="Maximum commute time in minutes",
-    )
-    commute_destination: str | None = Field(
-        default=None,
-        description="Destination address for commute calculation",
-    )
-
-    # Price criteria
-    max_price: int | None = Field(
-        default=None,
-        ge=0,
-        description="Maximum price in euros",
-    )
-    min_price: int | None = Field(
-        default=None,
-        ge=0,
-        description="Minimum price in euros",
-    )
-
-    # Photo-based criteria
-    must_have_garden: bool | None = Field(
-        default=None,
-        description="Whether the house must have a garden (detected from photos)",
-    )
-    must_have_balcony: bool | None = Field(
-        default=None,
-        description="Whether the house must have a balcony",
-    )
-
-    model_config = {"extra": "allow"}  # Allow extension with custom criteria
-
-
-@runtime_checkable
-class IFilter(Protocol):
-    """Protocol for house filtering operations.
+class IFilter(ABC):
+    """Abstract base class for house filtering operations.
 
     Implementations should focus on a single filtering concern.
     Filters can be chained in a pipeline for complex filtering.
+    Criteria are loaded from YAML and passed as a generic dict.
+
+    Each filter evaluates houses and returns per-criterion results
+    organized into P1 (must-have), P2 (nice-to-have), and excluded
+    (dealbreaker) buckets via FilterResult.
 
     Example implementations:
         - TextFilter: Filters by keywords in listing text
@@ -93,39 +34,23 @@ class IFilter(Protocol):
         - PhotoCheckerFilter: Filters by features detected in photos
     """
 
+    @abstractmethod
     def filter(
         self,
         houses: list[House],
-        criteria: FilterCriteria,
-    ) -> list[House]:
-        """Filter houses based on criteria.
+        criteria: dict[str, Any],
+    ) -> dict[str, FilterResult]:
+        """Evaluate houses against criteria.
 
         Args:
-            houses: List of houses to filter.
-            criteria: Filtering criteria to apply.
+            houses: List of houses to evaluate.
+            criteria: Filtering criteria loaded from YAML config.
 
         Returns:
-            Filtered list of houses that match the criteria.
+            Mapping of slug -> FilterResult with per-criterion matches.
         """
-        ...
-
-    async def filter_async(
-        self,
-        houses: list[House],
-        criteria: FilterCriteria,
-    ) -> list[House]:
-        """Async version of filter for parallel processing.
-
-        Args:
-            houses: List of houses to filter.
-            criteria: Filtering criteria to apply.
-
-        Returns:
-            Filtered list of houses that match the criteria.
-        """
-        ...
 
     @property
+    @abstractmethod
     def name(self) -> str:
         """Human-readable name for this filter."""
-        ...

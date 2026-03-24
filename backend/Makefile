@@ -1,4 +1,4 @@
-.PHONY: help install lint test format dev clean
+.PHONY: help install lint test format dev pipeline clean
 
 # Default target
 help:
@@ -14,6 +14,7 @@ help:
 	@echo ""
 	@echo "Development:"
 	@echo "  make dev        Start FastAPI dev server"
+	@echo "  make pipeline   Run the filter pipeline"
 	@echo "  make clean      Remove cache and build artifacts"
 
 # Install dependencies using uv (reads pyproject.toml)
@@ -37,6 +38,10 @@ test:
 # Start development server
 dev:
 	uv run uvicorn src.api.app:app --reload --port 8000
+
+# Run filter pipeline against input_data houses
+pipeline:
+	uv run python -m src.run
 
 # Clean artifacts
 clean:

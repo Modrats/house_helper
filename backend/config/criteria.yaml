@@ -1,0 +1,22 @@
+# Pipeline configuration
+# Storage paths are relative to the repo root.
+
+storage:
+  input_dir: "input_data/houses"
+  output_dir: "outputs/houses"
+
+# Filter criteria configuration
+# Each key maps to a filter's expected criteria fields.
+#
+# p1 = must-have (ALL must match)
+# p2 = nice-to-have (ANY must match)
+
+text_filter:
+  p1_keywords:
+    - "garden"
+  p2_keywords:
+    - "garage"
+    - "dishwasher"
+  excluded_keywords:
+    - "highway"
+    - "industrial"

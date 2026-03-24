@@ -2,7 +2,7 @@
 
 import pytest
 
-from src.models.house import House, HouseMetadata, HouseStatus
+from src.models.house import FilterResult, House, HouseMetadata, HouseStatus
 from src.models.room import Photo, Room, RoomType
 
 
@@ -149,15 +149,15 @@ class TestHouse:
     def test_filter_result_tracking(self):
         """House tracks filter results correctly."""
         house = House(slug="test-house")
-        assert house.passed_all_filters() is True  # No filters applied yet
 
-        house2 = house.with_filter_result("text_filter", True)
-        assert house2.filter_results["text_filter"] is True
-        assert house2.passed_all_filters() is True
+        result1 = FilterResult(p1={"garden": True})
+        house2 = house.with_filter_result(result1)
+        assert house2.filter_results.p1["garden"] is True
 
-        house3 = house2.with_filter_result("room_filter", False)
-        assert house3.passed_all_filters() is False
-        assert house3.excluded_by == "room_filter"
+        result2 = FilterResult(p2={"garage": False})
+        house3 = house2.with_filter_result(result2)
+        assert house3.filter_results.p2["garage"] is False
+        assert house3.filter_results.p1["garden"] is True
 
     def test_house_immutability(self):
         """House is immutable - updates return new instances."""
@@ -168,17 +168,8 @@ class TestHouse:
         assert house2.status == HouseStatus.CLASSIFIED
         assert house1 is not house2
 
-    def test_filter_score_tracking(self):
-        """House tracks numeric filter scores."""
-        house = House(slug="test")
-        house2 = house.with_filter_score("distance", 15.5)
-        house3 = house2.with_filter_score("price_score", 0.8)
-
-        assert house3.filter_scores["distance"] == 15.5
-        assert house3.filter_scores["price_score"] == 0.8
-
     def test_house_status_values(self):
         """All expected statuses exist."""
-        expected = {"raw", "classified", "evaluated", "imagineered", "complete"}
+        expected = {"raw", "filtered", "classified", "evaluated", "imagineered", "complete"}
         actual = {s.value for s in HouseStatus}
         assert expected == actual
