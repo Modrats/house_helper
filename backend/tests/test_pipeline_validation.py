@@ -4,7 +4,9 @@ Tests pipeline operations with proper filter implementations
 to ensure normal usage works correctly.
 """
 
-from typing import Any
+from typing import Any, NamedTuple
+
+import pytest
 
 from src.interfaces.filter import IFilter
 from src.models.house import FilterResult, House
@@ -45,56 +47,135 @@ class KeywordFilter(IFilter):
         return results
 
 
-class TestFilterPipeline:
-    """Tests for FilterPipeline functionality."""
+class FilterA(IFilter):
+    """Named filter for order verification."""
 
-    def test_add_filter_returns_self_for_chaining(self):
-        """add_filter() returns self to enable method chaining."""
-        pipeline = FilterPipeline()
-        result = pipeline.add_filter(SimpleFilter())
+    @property
+    def name(self) -> str:
+        return "filter_a"
 
-        assert result is pipeline
-        assert len(pipeline.filters) == 1
+    def filter(self, houses: list[House], criteria: dict[str, Any]) -> dict[str, FilterResult]:
+        return {h.slug: FilterResult() for h in houses}
 
-    def test_multiple_filters_can_be_added(self):
-        """Multiple filters can be chained in order."""
-        pipeline = FilterPipeline()
-        filter1 = SimpleFilter()
-        filter2 = KeywordFilter()
 
-        pipeline.add_filter(filter1).add_filter(filter2)
+class FilterB(IFilter):
+    """Named filter for order verification."""
 
-        assert len(pipeline.filters) == 2
-        assert pipeline.filters[0] is filter1
-        assert pipeline.filters[1] is filter2
+    @property
+    def name(self) -> str:
+        return "filter_b"
 
-    def test_filters_are_stored_in_order(self):
-        """Filters are stored in the order they were added."""
-        pipeline = FilterPipeline()
+    def filter(self, houses: list[House], criteria: dict[str, Any]) -> dict[str, FilterResult]:
+        return {h.slug: FilterResult() for h in houses}
 
-        # Add filters with distinguishable names
-        class FilterA(IFilter):
-            @property
-            def name(self):
-                return "filter_a"
 
-            def filter(self, houses, criteria):
-                return houses
+# ---------------------------------------------------------------------------
+# add_filter returns self
+# ---------------------------------------------------------------------------
 
-        class FilterB(IFilter):
-            @property
-            def name(self):
-                return "filter_b"
 
-            def filter(self, houses, criteria):
-                return houses
+class AddFilterChainCase(NamedTuple):
+    """Test case for add_filter chaining behaviour."""
 
-        pipeline.add_filter(FilterA()).add_filter(FilterB())
+    description: str
+    expected_filter_count: int
 
-        assert pipeline.filters[0].name == "filter_a"
-        assert pipeline.filters[1].name == "filter_b"
 
-    def test_pipeline_starts_empty(self):
-        """New pipeline starts with no filters."""
-        pipeline = FilterPipeline()
-        assert len(pipeline.filters) == 0
+ADD_FILTER_CHAIN_CASES = [
+    AddFilterChainCase(
+        description="add_filter returns the pipeline instance enabling method chaining",
+        expected_filter_count=1,
+    ),
+]
+
+
+@pytest.mark.parametrize("description, expected_filter_count", ADD_FILTER_CHAIN_CASES)
+def test_add_filter_returns_self_for_chaining(
+    description: str, expected_filter_count: int
+) -> None:
+    pipeline = FilterPipeline()
+    result = pipeline.add_filter(SimpleFilter())
+    assert result is pipeline
+    assert len(pipeline.filters) == expected_filter_count
+
+
+# ---------------------------------------------------------------------------
+# Filter ordering
+# ---------------------------------------------------------------------------
+
+
+class FilterOrderCase(NamedTuple):
+    """Test case for filter storage order."""
+
+    description: str
+    filter_1: IFilter
+    filter_2: IFilter
+    expected_name_0: str
+    expected_name_1: str
+    expected_count: int
+
+
+FILTER_ORDER_CASES = [
+    FilterOrderCase(
+        description="multiple filters are stored in the order they were added",
+        filter_1=SimpleFilter(),
+        filter_2=KeywordFilter(),
+        expected_name_0="simple_filter",
+        expected_name_1="keyword_filter",
+        expected_count=2,
+    ),
+    FilterOrderCase(
+        description="filters with distinguishable names are stored in insertion order",
+        filter_1=FilterA(),
+        filter_2=FilterB(),
+        expected_name_0="filter_a",
+        expected_name_1="filter_b",
+        expected_count=2,
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    "description, filter_1, filter_2, expected_name_0, expected_name_1, expected_count",
+    FILTER_ORDER_CASES,
+)
+def test_filters_stored_in_order(
+    description: str,
+    filter_1: IFilter,
+    filter_2: IFilter,
+    expected_name_0: str,
+    expected_name_1: str,
+    expected_count: int,
+) -> None:
+    pipeline = FilterPipeline()
+    pipeline.add_filter(filter_1).add_filter(filter_2)
+    assert len(pipeline.filters) == expected_count
+    assert pipeline.filters[0].name == expected_name_0
+    assert pipeline.filters[1].name == expected_name_1
+
+
+# ---------------------------------------------------------------------------
+# Empty pipeline
+# ---------------------------------------------------------------------------
+
+
+class EmptyPipelineCase(NamedTuple):
+    """Test case for a freshly created pipeline."""
+
+    description: str
+    expected_filter_count: int
+
+
+EMPTY_PIPELINE_CASES = [
+    EmptyPipelineCase(
+        description="new pipeline starts with zero filters",
+        expected_filter_count=0,
+    ),
+]
+
+
+@pytest.mark.parametrize("description, expected_filter_count", EMPTY_PIPELINE_CASES)
+def test_pipeline_starts_empty(description: str, expected_filter_count: int) -> None:
+    pipeline = FilterPipeline()
+    assert len(pipeline.filters) == expected_filter_count
+
