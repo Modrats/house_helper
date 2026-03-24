@@ -2,7 +2,7 @@
         install-backend install-frontend lint-backend lint-frontend \
         test-backend test-frontend format-backend format-frontend \
         dev-backend dev-frontend \
-        docker-build docker-up docker-down
+        docker-build docker-up docker-down backend-run frontend-run
 
 # Default target
 help:
@@ -27,6 +27,8 @@ help:
 	@echo "  make docker-build    Build Docker images"
 	@echo "  make docker-up       Start services (detached)"
 	@echo "  make docker-down     Stop services"
+	@echo "  make backend-run     Start only the backend container"
+	@echo "  make frontend-run    Start only the frontend container"
 	@echo ""
 	@echo "Individual targets:"
 	@echo "  make {lint,test,format}-{backend,frontend}"
@@ -125,3 +127,11 @@ docker-up:
 docker-down:
 	@echo "🐳 Stopping services..."
 	docker compose down
+
+backend-run:
+	@echo "🐳 Starting backend container..."
+	docker compose up -d backend
+
+frontend-run:
+	@echo "🐳 Starting frontend container..."
+	docker compose up -d frontend
