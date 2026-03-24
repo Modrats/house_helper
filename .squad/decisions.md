@@ -17,6 +17,18 @@ Decomposed Priority 1 work into 16 GitHub issues across 3 workstreams:
 - EXP-001 results will inform imagineering service defaults
 - Follows CLEAN architecture per ADRs
 
+### 2026-03-24: Use UV, not pip — all Python package management
+
+**By:** Terri Modrakowski (directive)
+
+All agents MUST use `uv` for Python dependency management — never `pip`. This aligns with ADR-002 which chose UV as the project's package manager. Commands: `uv pip install`, `uv sync`, `uv add` — never bare `pip install`.
+
+### 2026-03-24: Never skip lint or test failures — always fix
+
+**By:** Terri Modrakowski (directive)
+
+If a lint check, type check, or test fails, agents MUST fix the issue — never skip it, gloss over it, or bypass the hook. No `--no-verify`, no `SKIP=`, no "pre-existing issue" excuses. If it fails, fix it before proceeding.
+
 ## Governance
 
 - All meaningful changes require team consensus
