@@ -5,8 +5,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from ...models.room import Photo, RoomType
+from ..eval_config import load_thresholds
 from ..interfaces import IEvaluator
-from ..models import EvaluationReport, MetricResult, PhotoClassificationSample
+from ..metrics import (
+    EvaluationReport,
+    MetricResult,
+    compute_macro_precision_recall,
+)
+from ..models import PhotoClassificationSample
 
 COMMON_ROOMS: frozenset[RoomType] = frozenset(
     {
@@ -18,26 +24,20 @@ COMMON_ROOMS: frozenset[RoomType] = frozenset(
     }
 )
 
-_THRESHOLD_ACCURACY = 0.70
-_THRESHOLD_PRECISION = 0.65
-_THRESHOLD_RECALL = 0.65
-_THRESHOLD_CALIBRATION = 0.70
-_THRESHOLD_LATENCY = 10.0
-_THRESHOLD_COST = 0.05
-
 
 class PhotoClassifierEvaluator(IEvaluator):
     @property
     def name(self) -> str:
         return "photo_classifier"
 
-    def evaluate(  # type: ignore[override]
+    def evaluate(  # type: ignore[override]  # extra kwargs beyond base signature
         self,
         samples: list[PhotoClassificationSample],
         actual: list[Photo],
         latency_seconds: float,
         cost_usd: float,
         llm_judge_score: float | None = None,
+        **kwargs: object,
     ) -> EvaluationReport:
         actual_map: dict[str, Photo] = {Path(p.path).name: p for p in actual}
 
@@ -73,71 +73,27 @@ class PhotoClassifierEvaluator(IEvaluator):
                 fp[predicted] += 1
 
         accuracy = correct / total if total > 0 else 0.0
-
-        precision_vals = [
-            tp[rt] / (tp[rt] + fp[rt]) for rt in COMMON_ROOMS if (tp[rt] + fp[rt]) > 0
-        ]
-        recall_vals = [tp[rt] / (tp[rt] + fn[rt]) for rt in COMMON_ROOMS if (tp[rt] + fn[rt]) > 0]
-        precision = sum(precision_vals) / len(precision_vals) if precision_vals else 0.0
-        recall = sum(recall_vals) / len(recall_vals) if recall_vals else 0.0
+        precision, recall = compute_macro_precision_recall(tp, fp, fn, COMMON_ROOMS)
         calibration = calibration_pass / calibration_total if calibration_total > 0 else 0.0
 
-        judge_value = llm_judge_score if llm_judge_score is not None else -1.0
-
-        metrics = [
-            MetricResult(
-                name="accuracy",
-                value=accuracy,
-                unit="ratio",
-                passed=accuracy >= _THRESHOLD_ACCURACY,
-                threshold=_THRESHOLD_ACCURACY,
-            ),
-            MetricResult(
-                name="precision",
-                value=precision,
-                unit="ratio",
-                passed=precision >= _THRESHOLD_PRECISION,
-                threshold=_THRESHOLD_PRECISION,
-            ),
-            MetricResult(
-                name="recall",
-                value=recall,
-                unit="ratio",
-                passed=recall >= _THRESHOLD_RECALL,
-                threshold=_THRESHOLD_RECALL,
-            ),
-            MetricResult(
-                name="confidence_calibration",
-                value=calibration,
-                unit="ratio",
-                passed=calibration >= _THRESHOLD_CALIBRATION,
-                threshold=_THRESHOLD_CALIBRATION,
-            ),
-            MetricResult(
-                name="latency",
-                value=latency_seconds,
-                unit="seconds",
-                passed=latency_seconds <= _THRESHOLD_LATENCY,
-                threshold=_THRESHOLD_LATENCY,
-            ),
-            MetricResult(
-                name="cost",
-                value=cost_usd,
-                unit="usd",
-                passed=cost_usd <= _THRESHOLD_COST,
-                threshold=_THRESHOLD_COST,
-            ),
-            MetricResult(
-                name="llm_judge_score",
-                value=judge_value,
-                unit="score_1_5",
-                passed=True,
-                threshold=3.5,
-            ),
+        metrics: list[MetricResult] = [
+            MetricResult(name="accuracy", value=accuracy, unit="ratio"),
+            MetricResult(name="precision", value=precision, unit="ratio"),
+            MetricResult(name="recall", value=recall, unit="ratio"),
+            MetricResult(name="confidence_calibration", value=calibration, unit="ratio"),
+            MetricResult(name="latency", value=latency_seconds, unit="seconds"),
+            MetricResult(name="cost_usd", value=cost_usd, unit="usd"),
         ]
+        if llm_judge_score is not None:
+            metrics.append(
+                MetricResult(name="llm_judge_score", value=llm_judge_score, unit="score_1_5")
+            )
 
         return EvaluationReport(
             stage="photo_classifier",
             run_date=datetime.now(tz=timezone.utc),
             metrics=metrics,
         )
+
+    def thresholds(self) -> dict[str, float]:
+        return load_thresholds("photo_classifier")

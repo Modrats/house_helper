@@ -1,41 +1,18 @@
+"""Re-exports for the evaluation package.
+
+Thin shim that keeps ``from .models import ...`` working for evaluators
+and run_evals after the sample types moved to ``src/models/eval_samples``.
+"""
+
 from __future__ import annotations
 
-from datetime import datetime
-
-from pydantic import BaseModel, computed_field
-
-from .samples import (
+from ..models.eval_samples import (
     CriteriaEvaluationSample,
     ImagineeredSample,
     PhotoClassificationSample,
     TextFilterSample,
 )
-
-
-class MetricResult(BaseModel):
-    model_config = {"frozen": True}
-
-    name: str
-    value: float
-    unit: str
-    passed: bool
-    threshold: float
-
-
-class EvaluationReport(BaseModel):
-    model_config = {"frozen": True}
-
-    stage: str
-    model_name: str | None = None
-    prompt_version: str | None = None
-    run_date: datetime
-    metrics: list[MetricResult]
-
-    @computed_field
-    @property
-    def passed(self) -> bool:
-        return all(m.passed for m in self.metrics)
-
+from .metrics import EvaluationReport, MetricResult
 
 __all__ = [
     "MetricResult",

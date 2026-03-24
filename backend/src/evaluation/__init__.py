@@ -1,7 +1,7 @@
 """Evaluation module — ground truth schemas, interfaces, and metric models.
 
-Public API
-----------
+Exports
+-------
 Sample schemas (ground truth fixture shapes):
     TextFilterSample
     PhotoClassificationSample
@@ -18,12 +18,18 @@ Metric types:
     LatencyMetric           Wall-clock time vs threshold
     CostMetric              Token usage and estimated USD vs budget
     AccuracyMetric          Precision / recall / accuracy vs ground truth
-    LLMJudgeMetric          LLM judge score (1–5 scale)
+    LLMJudgeMetric          LLM judge score (1-5 scale)
 
 Aggregation:
-    EvaluationReport        All metrics for one sample in one stage
+    EvaluationReport        All metrics for one stage
 """
 
+from ..models.eval_samples import (
+    CriteriaEvaluationSample,
+    ImagineeredSample,
+    PhotoClassificationSample,
+    TextFilterSample,
+)
 from .interfaces import IEvaluator
 from .metrics import (
     AccuracyMetric,
@@ -32,12 +38,6 @@ from .metrics import (
     LatencyMetric,
     LLMJudgeMetric,
     MetricResult,
-)
-from .samples import (
-    CriteriaEvaluationSample,
-    ImagineeredSample,
-    PhotoClassificationSample,
-    TextFilterSample,
 )
 
 __all__ = [

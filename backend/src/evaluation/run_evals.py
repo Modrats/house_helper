@@ -8,10 +8,12 @@ import sys
 from pathlib import Path
 
 from ..models.room import Photo
+from .eval_config import load_thresholds
 from .evaluators.criteria_evaluator import CriteriaEvaluator
 from .evaluators.imagineering_evaluator import ImagineeeringEvaluator
 from .evaluators.photo_classifier_evaluator import PhotoClassifierEvaluator
 from .evaluators.text_filter_evaluator import TextFilterEvaluator
+from .local_publisher import LocalPublisher
 from .models import (
     CriteriaEvaluationSample,
     EvaluationReport,
@@ -19,8 +21,13 @@ from .models import (
     PhotoClassificationSample,
     TextFilterSample,
 )
+from .publisher_interface import IMetricsPublisher
 
-FIXTURES_DIR = Path(__file__).parent.parent.parent / "tests" / "fixtures"
+FIXTURES_DIR = Path(__file__).parent.parent.parent / "tests" / "ground_truth"
+
+_COL_STAGE = 22
+_COL_PASSED = 8
+_COL_METRICS = 50
 
 
 def _load_records(filename: str) -> list[dict]:
@@ -75,22 +82,27 @@ _RUNNERS = {
 }
 
 
-def _print_summary(reports: list[EvaluationReport]) -> None:
-    col_stage = 22
-    col_passed = 8
-    col_metrics = 50
-    header = f"{'stage':<{col_stage}} {'passed':<{col_passed}} {'metrics'}"
+def _print_summary(results: list[tuple[EvaluationReport, dict[str, bool]]]) -> None:
+    header = f"{'stage':<{_COL_STAGE}} {'passed':<{_COL_PASSED}} {'metrics'}"
     print(header)
-    print("-" * (col_stage + col_passed + col_metrics + 2))
-    for report in reports:
+    print("-" * (_COL_STAGE + _COL_PASSED + _COL_METRICS + 2))
+    for report, checks in results:
         metric_summary = ", ".join(
-            f"{m.name}={m.value:.3f}({'ok' if m.passed else 'FAIL'})" for m in report.metrics
+            f"{m.name}={m.value:.3f}({'ok' if checks.get(m.name, True) else 'FAIL'})"
+            for m in report.metrics
         )
-        passed_str = "PASS" if report.passed else "FAIL"
-        print(f"{report.stage:<{col_stage}} {passed_str:<{col_passed}} {metric_summary}")
+        stage_passed = all(checks.values()) if checks else True
+        passed_str = "PASS" if stage_passed else "FAIL"
+        print(f"{report.stage:<{_COL_STAGE}} {passed_str:<{_COL_PASSED}} {metric_summary}")
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(
+    argv: list[str] | None = None,
+    publisher: IMetricsPublisher | None = None,
+) -> int:
+    if publisher is None:
+        publisher = LocalPublisher()
+
     parser = argparse.ArgumentParser(description="Run evaluation suite.")
     parser.add_argument(
         "--component",
@@ -101,19 +113,27 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     to_run = {args.component: _RUNNERS[args.component]} if args.component else _RUNNERS
-    reports: list[EvaluationReport] = []
+    results: list[tuple[EvaluationReport, dict[str, bool]]] = []
     for name, runner in to_run.items():
         print(f"Running {name}...")
         try:
-            reports.append(runner())
+            report = runner()
+            thresholds = load_thresholds(name)
+            checks = report.check_thresholds(thresholds)
+            publisher.publish(
+                report,
+                experiment_name=name,
+                run_tags={"model_name": "local", "prompt_version": "local", "stage": name},
+            )
+            results.append((report, checks))
         except Exception as exc:
             print(f"  ERROR: {exc}", file=sys.stderr)
             return 1
 
     print()
-    _print_summary(reports)
+    _print_summary(results)
 
-    any_failed = any(not r.passed for r in reports)
+    any_failed = any(not all(checks.values()) for _, checks in results if checks)
     return 1 if any_failed else 0
 
 

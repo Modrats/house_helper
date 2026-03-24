@@ -9,8 +9,8 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from ..models.house import FilterResult
-from ..models.room import RoomType
+from .house import FilterResult
+from .room import RoomType
 
 
 class TextFilterSample(BaseModel):
@@ -38,7 +38,9 @@ class PhotoClassificationSample(BaseModel):
     model_config = {"frozen": True}
 
     photo_path: str = Field(description="Path to the image file (relative to repo root)")
-    expected_room_type: RoomType = Field(description="Correct room type label for this photo")
+    expected_room_type: RoomType = Field(
+        description="Correct room type label for this photo"
+    )
     expected_confidence_min: float = Field(
         ge=0.0,
         le=1.0,
