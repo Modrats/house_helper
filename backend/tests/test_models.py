@@ -68,10 +68,25 @@ class TestRoom:
     def test_room_types_enum(self):
         """All expected room types exist."""
         expected = {
-            "living_room", "bedroom", "kitchen", "bathroom", "toilet",
-            "hallway", "garden", "balcony", "garage", "storage",
-            "office", "dining_room", "laundry", "basement", "attic",
-            "exterior", "floor_plan", "other", "unknown"
+            "living_room",
+            "bedroom",
+            "kitchen",
+            "bathroom",
+            "toilet",
+            "hallway",
+            "garden",
+            "balcony",
+            "garage",
+            "storage",
+            "office",
+            "dining_room",
+            "laundry",
+            "basement",
+            "attic",
+            "exterior",
+            "floor_plan",
+            "other",
+            "unknown",
         }
         actual = {rt.value for rt in RoomType}
         assert expected == actual

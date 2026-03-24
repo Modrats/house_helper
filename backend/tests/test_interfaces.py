@@ -74,6 +74,7 @@ class TestIFilterProtocol:
 
     def test_protocol_is_runtime_checkable(self):
         """IFilter is runtime_checkable for isinstance checks."""
+
         # Create a minimal implementation
         class MockFilter:
             @property
@@ -93,6 +94,7 @@ class TestIFilterProtocol:
 
     def test_non_conforming_class_fails_check(self):
         """Classes without required methods don't match Protocol."""
+
         class NotAFilter:
             pass
 
@@ -100,9 +102,11 @@ class TestIFilterProtocol:
 
     def test_partial_implementation_fails_check(self):
         """Partial implementations don't match Protocol."""
+
         class PartialFilter:
             def filter(self, houses: list[House], criteria: FilterCriteria) -> list[House]:
                 return houses
+
             # Missing filter_async and name
 
         assert not isinstance(PartialFilter(), IFilter)

@@ -156,9 +156,7 @@ class FilterPipeline:
 
         for filter_impl in self.filters:
             filter_name = filter_impl.name
-            self._logger.info(
-                f"Running filter '{filter_name}' on {len(current_houses)} houses"
-            )
+            self._logger.info(f"Running filter '{filter_name}' on {len(current_houses)} houses")
 
             before_count = len(current_houses)
 
@@ -186,17 +184,13 @@ class FilterPipeline:
             )
 
             if self.config.fail_fast and after_count == 0:
-                self._logger.warning(
-                    f"Fail-fast: Filter '{filter_name}' excluded all houses"
-                )
+                self._logger.warning(f"Fail-fast: Filter '{filter_name}' excluded all houses")
                 break
 
         result.houses = current_houses
         result.output_count = len(current_houses)
         result.completed_at = datetime.now()
-        result.duration_seconds = (
-            result.completed_at - result.started_at
-        ).total_seconds()
+        result.duration_seconds = (result.completed_at - result.started_at).total_seconds()
 
         return result
 
@@ -257,17 +251,13 @@ class FilterPipeline:
             )
 
             if self.config.fail_fast and after_count == 0:
-                self._logger.warning(
-                    f"Fail-fast: Filter '{filter_name}' excluded all houses"
-                )
+                self._logger.warning(f"Fail-fast: Filter '{filter_name}' excluded all houses")
                 break
 
         result.houses = current_houses
         result.output_count = len(current_houses)
         result.completed_at = datetime.now()
-        result.duration_seconds = (
-            result.completed_at - result.started_at
-        ).total_seconds()
+        result.duration_seconds = (result.completed_at - result.started_at).total_seconds()
 
         return result
 
@@ -324,9 +314,7 @@ class FilterPipeline:
 
         result.output_count = len(result.houses)
         result.completed_at = datetime.now()
-        result.duration_seconds = (
-            result.completed_at - result.started_at
-        ).total_seconds()
+        result.duration_seconds = (result.completed_at - result.started_at).total_seconds()
 
         return result
 
@@ -380,9 +368,7 @@ class FilterPipeline:
 
         result.output_count = len(result.houses)
         result.completed_at = datetime.now()
-        result.duration_seconds = (
-            result.completed_at - result.started_at
-        ).total_seconds()
+        result.duration_seconds = (result.completed_at - result.started_at).total_seconds()
 
         return result
 

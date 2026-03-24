@@ -160,11 +160,7 @@ class TestFilterPipeline:
 
     def test_method_chaining(self):
         """Pipeline methods support chaining."""
-        pipeline = (
-            FilterPipeline()
-            .add_filter(PassAllFilter())
-            .add_filter(PriceFilter())
-        )
+        pipeline = FilterPipeline().add_filter(PassAllFilter()).add_filter(PriceFilter())
         assert len(pipeline.filters) == 2
 
     def test_remove_filter(self):
