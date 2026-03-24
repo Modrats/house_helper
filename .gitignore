@@ -10,8 +10,13 @@ old/*
 .gitattributes
 .pnpm-store/*
 frontend/node_modules/*
-__pycache__/
-*.pyc
-*.pyo
 Work.md
 outputs/
+
+# Experiment secrets
+experiments/**/.env
+
+# Python cache
+**/__pycache__/
+**/*.pyc
+**/*.pyo

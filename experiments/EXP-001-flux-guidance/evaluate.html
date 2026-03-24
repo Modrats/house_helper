@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EXP-001: FLUX Guidance Evaluation</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, sans-serif;
+      background: #111;
+      color: #eee;
+      padding: 2rem;
+    }
+
+    h1 { font-size: 1.4rem; margin-bottom: 0.25rem; }
+    .subtitle { color: #888; font-size: 0.9rem; margin-bottom: 2.5rem; }
+
+    /* ---- room section ---- */
+    .room-section { margin-bottom: 4rem; }
+
+    .room-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      text-transform: capitalize;
+      margin-bottom: 0.4rem;
+      letter-spacing: 0.02em;
+    }
+
+    .room-prompt {
+      font-size: 0.78rem;
+      color: #888;
+      margin-bottom: 1.2rem;
+      font-style: italic;
+    }
+
+    /* ---- gallery grid ---- */
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.2rem;
+    }
+
+    .card {
+      background: #1a1a1a;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 2px solid transparent;
+      transition: border-color .15s;
+      cursor: pointer;
+    }
+
+    .card:hover { border-color: #444; }
+    .card.top { border-color: #22c55e !important; }
+
+    /* ---- image fill ---- */
+    .card-img-wrap {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      background: #222;
+      overflow: hidden;
+    }
+
+    .card-img-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: opacity .2s;
+    }
+
+    .card-img-wrap img.loading { opacity: 0; }
+
+    .img-placeholder {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #444;
+      font-size: 0.8rem;
+      text-align: center;
+      padding: 1rem;
+    }
+
+    /* ---- original badge ---- */
+    .badge {
+      position: absolute;
+      top: 8px; left: 8px;
+      background: #7c3aed;
+      color: #fff;
+      font-size: 0.65rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 99px;
+      letter-spacing: 0.05em;
+    }
+
+    /* lightbox overlay */
+    #lightbox {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.92);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    #lightbox.open { display: flex; }
+    #lightbox img {
+      max-width: 90vw;
+      max-height: 85vh;
+      border-radius: 6px;
+      object-fit: contain;
+    }
+    #lightbox-label {
+      color: #ccc;
+      font-size: 0.9rem;
+    }
+    #lightbox-close {
+      position: absolute;
+      top: 1.2rem; right: 1.5rem;
+      font-size: 1.6rem;
+      cursor: pointer;
+      color: #aaa;
+      background: none;
+      border: none;
+    }
+
+    /* ---- card body ---- */
+    .card-body {
+      padding: 0.7rem 0.9rem 0.9rem;
+    }
+
+    .card-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #bbb;
+      margin-bottom: 0.5rem;
+    }
+
+    .stars {
+      display: flex;
+      gap: 5px;
+      margin-bottom: 0.5rem;
+    }
+
+    .star {
+      font-size: 1.3rem;
+      cursor: pointer;
+      color: #444;
+      transition: color .1s;
+      user-select: none;
+      line-height: 1;
+    }
+    .star.filled { color: #f59e0b; }
+
+    .note-input {
+      width: 100%;
+      font-size: 0.75rem;
+      border: 1px solid #2a2a2a;
+      border-radius: 5px;
+      padding: 5px 7px;
+      resize: none;
+      font-family: inherit;
+      background: #111;
+      color: #ccc;
+    }
+    .note-input:focus { outline: none; border-color: #444; }
+
+    /* ---- actions ---- */
+    .actions {
+      margin-top: 2rem;
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    button {
+      padding: 0.5rem 1.25rem;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-family: inherit;
+    }
+    .btn-primary { background: #2563eb; color: #fff; }
+    .btn-secondary { background: #2a2a2a; color: #ccc; }
+
+    /* ---- summary ---- */
+    #summary {
+      margin-top: 2.5rem;
+      background: #1a1a1a;
+      border-radius: 10px;
+      padding: 1.5rem;
+      display: none;
+    }
+    #summary h2 { font-size: 1rem; margin-bottom: 1rem; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid #222; }
+    th { background: #222; font-weight: 600; color: #aaa; }
+    tr:last-child td { border-bottom: none; }
+    .winner-row { background: #052e16; color: #86efac; font-weight: 600; }
+  </style>
+</head>
+<body>
+
+<h1>EXP-001: FLUX.2-pro Guidance Evaluation</h1>
+<p class="subtitle">Click any image to enlarge. Rate outputs 1–5 stars. Scores persist in your browser.</p>
+
+<div id="rooms"></div>
+
+<div class="actions">
+  <button class="btn-primary" onclick="showSummary()">Show Recommendation</button>
+  <button class="btn-secondary" onclick="clearScores()">Clear All Scores</button>
+</div>
+
+<div id="summary">
+  <h2>Results Summary</h2>
+  <div id="summary-content"></div>
+</div>
+
+<!-- lightbox -->
+<div id="lightbox">
+  <button id="lightbox-close" onclick="closeLightbox()">✕</button>
+  <img id="lightbox-img" src="" alt="" />
+  <div id="lightbox-label"></div>
+</div>
+
+<script>
+// ---------------------------------------------------------------------------
+// Config (mirrors config.json — update both if rooms change)
+// ---------------------------------------------------------------------------
+const BASE = "/experiments/EXP-001-flux-guidance";
+
+const CONFIG = {
+  guidance_values: [5, 10, 15, 20, 30, 50],
+  rooms: {
+    kitchen: {
+      photo: "/input_data/houses/ikea_showroom/photos/052b2a2e-6694-41d4-8b0c-d3bf5485fd1c.jpeg",
+      prompt: "Please reimagine this room as a pastel themed sweet heaven kitchen crossed with a flavor laboratory with baking supplies all over the place, there is a rail with pastel cooking utensils in pastel purple, blue, orange, pink. Color coded jars in pastel colors and many decorated cakes and decorations. There is a kitchen island which holds all manner of baked goods. Themed a little bit like a sweets laboratory inspiring creativity and whimsy.",
+    },
+    living_room: {
+      photo: "/input_data/houses/ikea_showroom/photos/9563c53b-4725-4e8a-92f1-3bdeb6dcbf9d.jpeg",
+      prompt: "Please reimagine this room as a gamer's paradise, there are board games lying on tables where table top games like dungeons and dragons are left mid-game to serve as decoration. There is a large three seater couch with a chaise lounge, a cat tree and cozy cat blankets on the couch. There is a large tv on the wall.",
+    },
+  },
+};
+
+// ---------------------------------------------------------------------------
+// LocalStorage helpers
+// ---------------------------------------------------------------------------
+const key  = (room, g) => `exp001_${room}_${g}`;
+const nkey = (room, g) => `exp001_note_${room}_${g}`;
+const getScore = (r, g) => parseInt(localStorage.getItem(key(r, g)) || "0", 10);
+const setScore = (r, g, v) => localStorage.setItem(key(r, g), v);
+const getNote  = (r, g) => localStorage.getItem(nkey(r, g)) || "";
+const setNote  = (r, g, v) => localStorage.setItem(nkey(r, g), v);
+
+// ---------------------------------------------------------------------------
+// Lightbox
+// ---------------------------------------------------------------------------
+function openLightbox(src, label) {
+  document.getElementById("lightbox-img").src = src;
+  document.getElementById("lightbox-label").textContent = label;
+  document.getElementById("lightbox").classList.add("open");
+}
+function closeLightbox() {
+  document.getElementById("lightbox").classList.remove("open");
+}
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeLightbox(); });
+
+// ---------------------------------------------------------------------------
+// Stars
+// ---------------------------------------------------------------------------
+function renderStars(room, guidance) {
+  const current = getScore(room, guidance);
+  const container = document.getElementById(`stars-${room}-${guidance}`);
+  if (!container) return;
+  container.innerHTML = "";
+  for (let i = 1; i <= 5; i++) {
+    const star = document.createElement("span");
+    star.className = "star" + (i <= current ? " filled" : "");
+    star.textContent = "★";
+    star.addEventListener("click", e => { e.stopPropagation(); setScore(room, guidance, i); renderStars(room, guidance); });
+    star.addEventListener("mouseenter", () => {
+      container.querySelectorAll(".star").forEach((s, idx) => s.classList.toggle("filled", idx < i));
+    });
+    star.addEventListener("mouseleave", () => renderStars(room, guidance));
+    container.appendChild(star);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Card builder
+// ---------------------------------------------------------------------------
+function buildCard(room, guidance, isOriginal) {
+  const imgSrc = isOriginal
+    ? CONFIG.rooms[room].photo
+    : `${BASE}/results/${room}/guidance_${String(guidance).padStart(2, "0")}.png`;
+  const label = isOriginal ? "Original" : `guidance = ${guidance}`;
+
+  const card = document.createElement("div");
+  card.className = "card" + (isOriginal ? "" : "");
+
+  // image wrap
+  const wrap = document.createElement("div");
+  wrap.className = "card-img-wrap";
+  wrap.addEventListener("click", () => openLightbox(imgSrc, `${room} — ${label}`));
+
+  const placeholder = document.createElement("div");
+  placeholder.className = "img-placeholder";
+  placeholder.textContent = isOriginal ? "Loading original…" : `guidance_${String(guidance).padStart(2,"0")}.png\nnot generated yet`;
+  wrap.appendChild(placeholder);
+
+  const img = document.createElement("img");
+  img.alt = label;
+  img.className = "loading";
+  img.onload = () => { img.classList.remove("loading"); placeholder.style.display = "none"; };
+  img.onerror = () => { img.remove(); };
+  img.src = imgSrc;
+  wrap.appendChild(img);
+
+  if (isOriginal) {
+    const badge = document.createElement("div");
+    badge.className = "badge";
+    badge.textContent = "ORIGINAL";
+    wrap.appendChild(badge);
+  }
+
+  card.appendChild(wrap);
+
+  // body
+  const body = document.createElement("div");
+  body.className = "card-body";
+
+  const lbl = document.createElement("div");
+  lbl.className = "card-label";
+  lbl.textContent = label;
+  body.appendChild(lbl);
+
+  if (!isOriginal) {
+    const stars = document.createElement("div");
+    stars.className = "stars";
+    stars.id = `stars-${room}-${guidance}`;
+    body.appendChild(stars);
+
+    const note = document.createElement("textarea");
+    note.className = "note-input";
+    note.rows = 2;
+    note.placeholder = "Notes (artifacts, fidelity, style…)";
+    note.value = getNote(room, guidance);
+    note.addEventListener("click", e => e.stopPropagation());
+    note.addEventListener("input", () => setNote(room, guidance, note.value));
+    body.appendChild(note);
+  }
+
+  card.appendChild(body);
+  return card;
+}
+
+// ---------------------------------------------------------------------------
+// Build page
+// ---------------------------------------------------------------------------
+function init() {
+  const container = document.getElementById("rooms");
+
+  for (const [room, cfg] of Object.entries(CONFIG.rooms)) {
+    const section = document.createElement("div");
+    section.className = "room-section";
+
+    const title = document.createElement("div");
+    title.className = "room-title";
+    title.textContent = room.replace("_", " ");
+    section.appendChild(title);
+
+    const promptEl = document.createElement("div");
+    promptEl.className = "room-prompt";
+    promptEl.textContent = `"${cfg.prompt}"`;
+    section.appendChild(promptEl);
+
+    const gallery = document.createElement("div");
+    gallery.className = "gallery";
+
+    gallery.appendChild(buildCard(room, null, true));
+    for (const g of CONFIG.guidance_values) {
+      gallery.appendChild(buildCard(room, g, false));
+    }
+
+    section.appendChild(gallery);
+    container.appendChild(section);
+  }
+
+  // render stars after DOM exists
+  for (const room of Object.keys(CONFIG.rooms)) {
+    for (const g of CONFIG.guidance_values) renderStars(room, g);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Summary
+// ---------------------------------------------------------------------------
+function showSummary() {
+  const rooms = Object.keys(CONFIG.rooms);
+  const totals = {}, counts = {};
+  for (const g of CONFIG.guidance_values) { totals[g] = 0; counts[g] = 0; }
+
+  for (const room of rooms) {
+    for (const g of CONFIG.guidance_values) {
+      const s = getScore(room, g);
+      if (s > 0) { totals[g] += s; counts[g]++; }
+    }
+  }
+
+  const rows = CONFIG.guidance_values.map(g => ({
+    guidance: g,
+    avg: counts[g] > 0 ? (totals[g] / counts[g]).toFixed(2) : null,
+    rated: counts[g],
+  }));
+
+  const rated = rows.filter(r => r.avg !== null);
+  const winner = rated.length ? rated.reduce((a, b) => parseFloat(a.avg) >= parseFloat(b.avg) ? a : b) : null;
+
+  let html = `<table><thead><tr><th>Guidance</th><th>Avg Score</th><th>Rooms Rated</th><th></th></tr></thead><tbody>`;
+  for (const row of rows) {
+    const isWinner = winner && row.guidance === winner.guidance;
+    const stars = row.avg ? "★".repeat(Math.round(parseFloat(row.avg))) : "—";
+    html += `<tr class="${isWinner ? "winner-row" : ""}">
+      <td>${row.guidance}</td>
+      <td>${row.avg ? `${stars} (${row.avg})` : "—"}</td>
+      <td>${row.rated} / ${rooms.length}</td>
+      <td>${isWinner ? "✅ Recommended" : ""}</td>
+    </tr>`;
+  }
+  html += `</tbody></table>`;
+
+  if (winner) {
+    html += `<p style="margin-top:1rem;font-size:.9rem;color:#86efac">
+      <strong>Recommendation:</strong> guidance = <strong>${winner.guidance}</strong> (avg ${winner.avg}/5)
+    </p>`;
+  } else {
+    html += `<p style="margin-top:1rem;color:#555;font-size:.85rem">Rate some outputs above to see a recommendation.</p>`;
+  }
+
+  document.getElementById("summary-content").innerHTML = html;
+  document.getElementById("summary").style.display = "block";
+  document.getElementById("summary").scrollIntoView({ behavior: "smooth" });
+}
+
+function clearScores() {
+  if (!confirm("Clear all scores and notes?")) return;
+  for (const room of Object.keys(CONFIG.rooms)) {
+    for (const g of CONFIG.guidance_values) {
+      localStorage.removeItem(key(room, g));
+      localStorage.removeItem(nkey(room, g));
+      const note = document.querySelector(`#stars-${room}-${g}`)?.nextElementSibling;
+      if (note) note.value = "";
+      renderStars(room, g);
+    }
+  }
+  document.getElementById("summary").style.display = "none";
+}
+
+init();
+</script>
+</body>
+</html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EXP-001: FLUX Guidance Evaluation</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, sans-serif;
+      background: #f4f4f4;
+      color: #1a1a1a;
+      padding: 2rem;
+    }
+
+    h1 { font-size: 1.4rem; margin-bottom: 0.25rem; }
+    .subtitle { color: #666; font-size: 0.9rem; margin-bottom: 2rem; }
+
+    .room-section {
+      margin-bottom: 3rem;
+      background: #fff;
+      border-radius: 10px;
+      padding: 1.5rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    }
+
+    .room-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      text-transform: capitalize;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 1rem;
+    }
+
+    .card {
+      border: 2px solid transparent;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #fafafa;
+      transition: border-color .2s;
+    }
+
+    .card.selected { border-color: #2563eb; }
+    .card.top { border-color: #16a34a; }
+
+    .card img {
+      width: 100%;
+      aspect-ratio: 1/1;
+      object-fit: cover;
+      display: block;
+      background: #ddd;
+    }
+
+    .card-body { padding: 0.6rem 0.75rem; }
+
+    .card-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #444;
+      margin-bottom: 0.4rem;
+    }
+
+    .stars {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 0.4rem;
+    }
+
+    .star {
+      font-size: 1.2rem;
+      cursor: pointer;
+      color: #ccc;
+      transition: color .1s;
+      user-select: none;
+    }
+
+    .star.filled { color: #f59e0b; }
+
+    .note-input {
+      width: 100%;
+      font-size: 0.75rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 4px 6px;
+      resize: none;
+      font-family: inherit;
+    }
+
+    .original-card img { border-bottom: 3px solid #9333ea; }
+    .original-badge {
+      display: inline-block;
+      background: #9333ea;
+      color: #fff;
+      font-size: 0.65rem;
+      padding: 1px 6px;
+      border-radius: 99px;
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+
+    .actions {
+      margin-top: 1.5rem;
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    button {
+      padding: 0.5rem 1.25rem;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-family: inherit;
+    }
+
+    .btn-primary { background: #2563eb; color: #fff; }
+    .btn-secondary { background: #e5e7eb; color: #1a1a1a; }
+
+    #summary {
+      margin-top: 2rem;
+      background: #fff;
+      border-radius: 10px;
+      padding: 1.5rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08);
+      display: none;
+    }
+
+    #summary h2 { font-size: 1rem; margin-bottom: 1rem; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid #eee; }
+    th { background: #f9fafb; font-weight: 600; }
+    tr:last-child td { border-bottom: none; }
+
+    .winner-row { background: #f0fdf4; font-weight: 600; }
+
+    .missing {
+      color: #999;
+      font-style: italic;
+      font-size: 0.85rem;
+      margin-top: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+
+<h1>EXP-001: FLUX.2-pro Guidance Parameter Evaluation</h1>
+<p class="subtitle">Rate each output 1–5 stars. Your scores are saved in your browser.</p>
+
+<div id="rooms"></div>
+
+<div class="actions">
+  <button class="btn-primary" onclick="showSummary()">Show Summary & Recommendation</button>
+  <button class="btn-secondary" onclick="clearScores()">Clear All Scores</button>
+</div>
+
+<div id="summary">
+  <h2>Results Summary</h2>
+  <div id="summary-content"></div>
+</div>
+
+<script>
+const ROOMS = ["kitchen", "living_room"];
+const GUIDANCE_VALUES = [5, 10, 15, 20, 30, 50];
+const INPUT_PHOTOS = {
+  kitchen: "../../input_data/houses/ikea_showroom/photos/052b2a2e-6694-41d4-8b0c-d3bf5485fd1c.jpeg",
+  living_room: "../../input_data/houses/ikea_showroom/photos/9563c53b-4725-4e8a-92f1-3bdeb6dcbf9d.jpeg",
+};
+
+function storageKey(room, guidance) {
+  return `exp001_${room}_${guidance}`;
+}
+
+function noteKey(room, guidance) {
+  return `exp001_note_${room}_${guidance}`;
+}
+
+function getScore(room, guidance) {
+  return parseInt(localStorage.getItem(storageKey(room, guidance)) || "0", 10);
+}
+
+function setScore(room, guidance, score) {
+  localStorage.setItem(storageKey(room, guidance), score);
+}
+
+function getNote(room, guidance) {
+  return localStorage.getItem(noteKey(room, guidance)) || "";
+}
+
+function setNote(room, guidance, note) {
+  localStorage.setItem(noteKey(room, guidance), note);
+}
+
+function renderStars(room, guidance) {
+  const current = getScore(room, guidance);
+  const container = document.getElementById(`stars-${room}-${guidance}`);
+  if (!container) return;
+  container.innerHTML = "";
+  for (let i = 1; i <= 5; i++) {
+    const star = document.createElement("span");
+    star.className = "star" + (i <= current ? " filled" : "");
+    star.textContent = "★";
+    star.addEventListener("click", () => {
+      setScore(room, guidance, i);
+      renderStars(room, guidance);
+    });
+    // Hover preview
+    star.addEventListener("mouseenter", () => {
+      const stars = container.querySelectorAll(".star");
+      stars.forEach((s, idx) => {
+        s.classList.toggle("filled", idx < i);
+      });
+    });
+    star.addEventListener("mouseleave", () => renderStars(room, guidance));
+    container.appendChild(star);
+  }
+}
+
+function buildCard(room, guidance, isOriginal = false) {
+  const card = document.createElement("div");
+  card.className = "card" + (isOriginal ? " original-card" : "");
+  card.id = `card-${room}-${isOriginal ? "orig" : guidance}`;
+
+  const imgSrc = isOriginal
+    ? INPUT_PHOTOS[room]
+    : `results/${room}/guidance_${String(guidance).padStart(2, "0")}.png`;
+
+  const img = document.createElement("img");
+  img.src = imgSrc;
+  img.alt = isOriginal ? `Original ${room}` : `guidance=${guidance}`;
+  img.onerror = () => {
+    img.style.background = "#e5e7eb";
+    img.alt = "Image not found";
+    card.style.opacity = "0.5";
+    const missing = document.createElement("p");
+    missing.className = "missing";
+    missing.textContent = isOriginal ? "Source photo not found" : `guidance_${String(guidance).padStart(2, "0")}.png\nnot generated yet`;
+    card.querySelector(".card-body").appendChild(missing);
+  };
+
+  const body = document.createElement("div");
+  body.className = "card-body";
+
+  const label = document.createElement("div");
+  label.className = "card-label";
+  if (isOriginal) {
+    label.innerHTML = `Original <span class="original-badge">source</span>`;
+  } else {
+    label.textContent = `guidance = ${guidance}`;
+  }
+
+  body.appendChild(label);
+
+  if (!isOriginal) {
+    const stars = document.createElement("div");
+    stars.className = "stars";
+    stars.id = `stars-${room}-${guidance}`;
+    body.appendChild(stars);
+
+    const note = document.createElement("textarea");
+    note.className = "note-input";
+    note.rows = 2;
+    note.placeholder = "Notes (artifacts, fidelity, style…)";
+    note.value = getNote(room, guidance);
+    note.addEventListener("input", () => setNote(room, guidance, note.value));
+    body.appendChild(note);
+  }
+
+  card.appendChild(img);
+  card.appendChild(body);
+  return card;
+}
+
+function buildRoomSection(room) {
+  const section = document.createElement("div");
+  section.className = "room-section";
+
+  const title = document.createElement("div");
+  title.className = "room-title";
+  title.textContent = room.replace("_", " ");
+  section.appendChild(title);
+
+  const grid = document.createElement("div");
+  grid.className = "grid";
+
+  // Original photo first
+  grid.appendChild(buildCard(room, null, true));
+
+  // Guidance outputs
+  for (const g of GUIDANCE_VALUES) {
+    grid.appendChild(buildCard(room, g, false));
+  }
+
+  section.appendChild(grid);
+  return section;
+}
+
+function init() {
+  const container = document.getElementById("rooms");
+  for (const room of ROOMS) {
+    container.appendChild(buildRoomSection(room));
+  }
+
+  // Render stars after DOM is built
+  for (const room of ROOMS) {
+    for (const g of GUIDANCE_VALUES) {
+      renderStars(room, g);
+    }
+  }
+}
+
+function showSummary() {
+  const summaryEl = document.getElementById("summary");
+  const contentEl = document.getElementById("summary-content");
+  summaryEl.style.display = "block";
+
+  // Aggregate scores per guidance value
+  const totals = {};
+  const counts = {};
+  for (const g of GUIDANCE_VALUES) {
+    totals[g] = 0;
+    counts[g] = 0;
+  }
+
+  for (const room of ROOMS) {
+    for (const g of GUIDANCE_VALUES) {
+      const s = getScore(room, g);
+      if (s > 0) {
+        totals[g] += s;
+        counts[g]++;
+      }
+    }
+  }
+
+  const averages = GUIDANCE_VALUES.map(g => ({
+    guidance: g,
+    avg: counts[g] > 0 ? (totals[g] / counts[g]).toFixed(2) : "—",
+    rated: counts[g],
+  }));
+
+  const rated = averages.filter(x => x.avg !== "—");
+  const winner = rated.length ? rated.reduce((a, b) => parseFloat(a.avg) >= parseFloat(b.avg) ? a : b) : null;
+
+  let html = `<table>
+    <thead><tr><th>Guidance</th><th>Avg Score</th><th>Rooms Rated</th><th></th></tr></thead>
+    <tbody>`;
+
+  for (const row of averages) {
+    const isWinner = winner && row.guidance === winner.guidance && row.avg !== "—";
+    html += `<tr class="${isWinner ? "winner-row" : ""}">
+      <td>${row.guidance}</td>
+      <td>${row.avg !== "—" ? `${"★".repeat(Math.round(parseFloat(row.avg)))} (${row.avg})` : "—"}</td>
+      <td>${row.rated} / ${ROOMS.length}</td>
+      <td>${isWinner ? "✅ Recommended" : ""}</td>
+    </tr>`;
+  }
+
+  html += `</tbody></table>`;
+
+  if (winner) {
+    html += `<p style="margin-top:1rem;font-size:.9rem;">
+      <strong>Recommendation:</strong> guidance = <strong>${winner.guidance}</strong> scored highest (avg ${winner.avg}/5).
+    </p>`;
+  } else {
+    html += `<p style="margin-top:1rem;color:#999;font-size:.85rem;">Rate some outputs above to see a recommendation.</p>`;
+  }
+
+  contentEl.innerHTML = html;
+  summaryEl.scrollIntoView({ behavior: "smooth" });
+}
+
+function clearScores() {
+  if (!confirm("Clear all scores and notes?")) return;
+  for (const room of ROOMS) {
+    for (const g of GUIDANCE_VALUES) {
+      localStorage.removeItem(storageKey(room, g));
+      localStorage.removeItem(noteKey(room, g));
+      const noteEl = document.querySelector(`#card-${room}-${g} .note-input`);
+      if (noteEl) noteEl.value = "";
+      renderStars(room, g);
+    }
+  }
+  document.getElementById("summary").style.display = "none";
+}
+
+init();
+</script>
+</body>
+</html>
