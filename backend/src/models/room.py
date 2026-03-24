@@ -56,7 +56,7 @@ class Photo(BaseModel):
     # Features found while evaluating criteria (populated by the criteria evaluator).
     detected_features: list[str] = Field(
         default_factory=list,
-        description="Features observed while evaluating criteria (e.g., 'dishwasher_present', 'natural_light')",
+        description="Features observed while evaluating criteria (e.g., 'dishwasher_present').",
     )
 
     # Imagineering outputs
