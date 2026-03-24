@@ -77,9 +77,7 @@ class PhotoClassifierEvaluator(IEvaluator):
         precision_vals = [
             tp[rt] / (tp[rt] + fp[rt]) for rt in COMMON_ROOMS if (tp[rt] + fp[rt]) > 0
         ]
-        recall_vals = [
-            tp[rt] / (tp[rt] + fn[rt]) for rt in COMMON_ROOMS if (tp[rt] + fn[rt]) > 0
-        ]
+        recall_vals = [tp[rt] / (tp[rt] + fn[rt]) for rt in COMMON_ROOMS if (tp[rt] + fn[rt]) > 0]
         precision = sum(precision_vals) / len(precision_vals) if precision_vals else 0.0
         recall = sum(recall_vals) / len(recall_vals) if recall_vals else 0.0
         calibration = calibration_pass / calibration_total if calibration_total > 0 else 0.0

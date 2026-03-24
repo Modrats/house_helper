@@ -49,9 +49,7 @@ class EvaluationReport(BaseModel):
     model_name: str = Field(description="Name/version of the model under evaluation")
     prompt_version: str = Field(description="Version of the prompt template used")
     run_date: datetime = Field(description="UTC timestamp of the evaluation run start")
-    stage_metrics: list[StageMetrics] = Field(
-        description="Metrics collected per pipeline stage"
-    )
+    stage_metrics: list[StageMetrics] = Field(description="Metrics collected per pipeline stage")
 
 
 class IMetricsPublisher(ABC):

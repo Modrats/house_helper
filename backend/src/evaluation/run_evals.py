@@ -49,9 +49,7 @@ def _run_photo_classifier() -> EvaluationReport:
         )
         for s in samples
     ]
-    return PhotoClassifierEvaluator().evaluate(
-        samples, actual, latency_seconds=1.0, cost_usd=0.01
-    )
+    return PhotoClassifierEvaluator().evaluate(samples, actual, latency_seconds=1.0, cost_usd=0.01)
 
 
 def _run_criteria_evaluator() -> EvaluationReport:
@@ -86,8 +84,7 @@ def _print_summary(reports: list[EvaluationReport]) -> None:
     print("-" * (col_stage + col_passed + col_metrics + 2))
     for report in reports:
         metric_summary = ", ".join(
-            f"{m.name}={m.value:.3f}({'ok' if m.passed else 'FAIL'})"
-            for m in report.metrics
+            f"{m.name}={m.value:.3f}({'ok' if m.passed else 'FAIL'})" for m in report.metrics
         )
         passed_str = "PASS" if report.passed else "FAIL"
         print(f"{report.stage:<{col_stage}} {passed_str:<{col_passed}} {metric_summary}")
