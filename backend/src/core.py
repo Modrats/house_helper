@@ -7,12 +7,16 @@ import os
 from .config import load_distance_config, load_storage_paths
 from .interfaces.data_source import IDataSource
 from .interfaces.distance_calculator import IDistanceCalculator
+from .interfaces.filter import IFilter
+from .interfaces.imagineering import IImagineeringService
 from .interfaces.room_classifier import IRoomClassifier
 from .services.azure_openai_service import AzureOpenAIService
 from .services.distance_calculator import GoogleMapsDistanceCalculator
 from .services.house_repository import HouseRepository
+from .services.imagineering_service import FluxImagineeringService
 from .services.local_storage import LocalStorage
 from .services.room_classifier import AzureOpenAIRoomClassifier
+from .services.text_filter_service import LLMTextFilterService
 
 
 def create_storage() -> IDataSource:
@@ -83,4 +87,51 @@ def create_distance_calculator() -> IDistanceCalculator:
         input_dir=input_dir,
         output_dir=output_dir,
         destinations=destinations,
+def create_imagineering_service() -> IImagineeringService:
+    """Create an imagineering service wired to FLUX.2-pro and storage paths.
+
+    Reads FLUX_API_KEY, FLUX_ENDPOINT, and FLUX_GUIDANCE from environment
+    variables. All three are required — missing values raise RuntimeError.
+    FLUX_SEED is optional (defaults to random per-image).
+
+    Returns:
+        A configured IImagineeringService implementation.
+
+    Raises:
+        RuntimeError: If required FLUX environment variables are missing.
+    """
+    missing = [
+        name
+        for name in ("FLUX_API_KEY", "FLUX_ENDPOINT", "FLUX_GUIDANCE")
+        if not os.environ.get(name)
+    ]
+    if missing:
+        raise RuntimeError(f"Missing required environment variables: {', '.join(missing)}")
+
+    input_dir, output_dir = load_storage_paths()
+    seed_raw = os.environ.get("FLUX_SEED")
+    return FluxImagineeringService(
+        api_key=os.environ["FLUX_API_KEY"],
+        endpoint=os.environ["FLUX_ENDPOINT"],
+        input_dir=input_dir,
+        output_dir=output_dir,
+        guidance=float(os.environ["FLUX_GUIDANCE"]),
+        default_seed=int(seed_raw) if seed_raw is not None else None,
+    )
+
+
+def create_llm_text_filter() -> IFilter:
+    """Create an LLM-based text filter wired to Azure OpenAI and storage paths.
+
+    Returns:
+        A configured IFilter implementation for LLM text analysis.
+
+    Raises:
+        MissingConfigError: If Azure OpenAI credentials are not configured.
+    """
+    llm_service = AzureOpenAIService()
+    _, output_dir = load_storage_paths()
+    return LLMTextFilterService(
+        llm_service=llm_service,
+        output_dir=output_dir,
     )

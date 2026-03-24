@@ -29,3 +29,14 @@ distance:
     - name: "Office"
       address: "Zuidas, Amsterdam"
       modes: ["driving", "transit"]
+      
+llm_text_filter:
+  p1_criteria:
+    - "has a private garden or outdoor space"
+    - "has at least 3 bedrooms"
+  p2_criteria:
+    - "has a garage or covered parking"
+    - "has a modern kitchen with dishwasher"
+  excluded_criteria:
+    - "located near a highway or industrial area"
+    - "requires major renovation"
