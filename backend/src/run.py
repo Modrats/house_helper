@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 
 from src.config import load_criteria
-from src.core import create_storage
+from src.core import create_repository
 from src.filters.text_filter import TextFilter
 from src.models.house import HouseStatus
 from src.runners.run_pipeline import FilterPipeline
@@ -27,7 +27,7 @@ def _status_at_least(current: HouseStatus, minimum: HouseStatus) -> bool:
 
 def main() -> None:
     criteria = load_criteria()
-    storage = create_storage()
+    storage = create_repository()
 
     all_houses = storage.load_houses(criteria)
     if not all_houses:
