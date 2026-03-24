@@ -6,11 +6,13 @@ import os
 
 from .config import ConfigLoader
 from .interfaces.data_source import IDataSource
+from .interfaces.distance_calculator import IDistanceCalculator
 from .interfaces.filter import IFilter
 from .interfaces.imagineering import IImagineeringService
 from .interfaces.photo_checker import IPhotoChecker
 from .interfaces.room_classifier import IRoomClassifier
 from .services.azure_openai_service import AzureOpenAIService
+from .services.distance_calculator import AzureMapsDistanceCalculator
 from .services.house_repository import HouseRepository
 from .services.imagineering_service import FluxImagineeringService
 from .services.local_storage import LocalStorage
@@ -61,6 +63,32 @@ def create_room_classifier() -> IRoomClassifier:
         input_dir=input_dir,
         output_dir=output_dir,
         batch_size=batch_size,
+    )
+
+
+def create_distance_calculator() -> IDistanceCalculator:
+    """Create a distance calculator wired to Azure Maps and storage paths.
+
+    Reads AZURE_MAPS_KEY from environment. Reads destinations from
+    the distance section of criteria.yaml.
+
+    Returns:
+        A configured IDistanceCalculator implementation.
+
+    Raises:
+        RuntimeError: If AZURE_MAPS_KEY is not set.
+    """
+    api_key = os.environ.get("AZURE_MAPS_KEY")
+    if not api_key:
+        raise RuntimeError("Missing required environment variable: AZURE_MAPS_KEY")
+
+    input_dir, output_dir = ConfigLoader().storage_paths()
+    destinations = ConfigLoader().distance_config()
+    return AzureMapsDistanceCalculator(
+        api_key=api_key,
+        input_dir=input_dir,
+        output_dir=output_dir,
+        destinations=destinations,
     )
 
 
