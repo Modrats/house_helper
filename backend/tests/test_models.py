@@ -499,3 +499,201 @@ HOUSE_STATUS_ENUM_CASES = [
 def test_house_status_values(description: str, expected_values: set) -> None:
     actual = {s.value for s in HouseStatus}
     assert expected_values == actual
+
+
+# ---------------------------------------------------------------------------
+# FilterResult — passed property
+# ---------------------------------------------------------------------------
+
+
+class FilterResultPassedCase(NamedTuple):
+    """Test case for FilterResult.passed computed field."""
+
+    description: str
+    p1: dict
+    p2: dict
+    excluded: dict
+    expected_passed: bool
+
+
+FILTER_RESULT_PASSED_CASES = [
+    FilterResultPassedCase(
+        description="empty result — passes",
+        p1={},
+        p2={},
+        excluded={},
+        expected_passed=True,
+    ),
+    FilterResultPassedCase(
+        description="p1 all True — passes",
+        p1={"garden": True, "balcony": True},
+        p2={},
+        excluded={},
+        expected_passed=True,
+    ),
+    FilterResultPassedCase(
+        description="p1 one False — fails",
+        p1={"garden": True, "pool": False},
+        p2={},
+        excluded={},
+        expected_passed=False,
+    ),
+    FilterResultPassedCase(
+        description="p2 one True — passes",
+        p1={},
+        p2={"garage": True, "garden": False},
+        excluded={},
+        expected_passed=True,
+    ),
+    FilterResultPassedCase(
+        description="p2 all False — fails",
+        p1={},
+        p2={"garage": False, "garden": False},
+        excluded={},
+        expected_passed=False,
+    ),
+    FilterResultPassedCase(
+        description="excluded one True — fails",
+        p1={},
+        p2={},
+        excluded={"renovation": True},
+        expected_passed=False,
+    ),
+    FilterResultPassedCase(
+        description="excluded all False — passes",
+        p1={},
+        p2={},
+        excluded={"renovation": False},
+        expected_passed=True,
+    ),
+    FilterResultPassedCase(
+        description="p1 True but excluded True — excluded wins and fails",
+        p1={"garden": True},
+        p2={},
+        excluded={"renovation": True},
+        expected_passed=False,
+    ),
+    FilterResultPassedCase(
+        description="empty p2 — passes (no p2 constraint)",
+        p1={"garden": True},
+        p2={},
+        excluded={},
+        expected_passed=True,
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    "description, p1, p2, excluded, expected_passed",
+    FILTER_RESULT_PASSED_CASES,
+)
+def test_filter_result_passed(
+    description: str,
+    p1: dict,
+    p2: dict,
+    excluded: dict,
+    expected_passed: bool,
+) -> None:
+    result = FilterResult(p1=p1, p2=p2, excluded=excluded)
+    assert result.passed == expected_passed
+
+
+# ---------------------------------------------------------------------------
+# FilterResult — merge
+# ---------------------------------------------------------------------------
+
+
+class FilterResultMergeCase(NamedTuple):
+    """Test case for FilterResult.merge()."""
+
+    description: str
+    left_p1: dict
+    left_p2: dict
+    left_excluded: dict
+    right_p1: dict
+    right_p2: dict
+    right_excluded: dict
+    expected_p1: dict
+    expected_p2: dict
+    expected_excluded: dict
+
+
+FILTER_RESULT_MERGE_CASES = [
+    FilterResultMergeCase(
+        description="merge two empty results — produces empty result",
+        left_p1={},
+        left_p2={},
+        left_excluded={},
+        right_p1={},
+        right_p2={},
+        right_excluded={},
+        expected_p1={},
+        expected_p2={},
+        expected_excluded={},
+    ),
+    FilterResultMergeCase(
+        description="merge non-overlapping keys — both keys present in result",
+        left_p1={"garden": True},
+        left_p2={},
+        left_excluded={},
+        right_p1={"balcony": False},
+        right_p2={},
+        right_excluded={},
+        expected_p1={"garden": True, "balcony": False},
+        expected_p2={},
+        expected_excluded={},
+    ),
+    FilterResultMergeCase(
+        description="merge overlapping key — second value wins",
+        left_p1={"garden": True},
+        left_p2={},
+        left_excluded={},
+        right_p1={"garden": False},
+        right_p2={},
+        right_excluded={},
+        expected_p1={"garden": False},
+        expected_p2={},
+        expected_excluded={},
+    ),
+    FilterResultMergeCase(
+        description="merge does not mutate originals — result is a new object",
+        left_p1={"garden": True},
+        left_p2={},
+        left_excluded={},
+        right_p1={"balcony": True},
+        right_p2={},
+        right_excluded={},
+        expected_p1={"garden": True, "balcony": True},
+        expected_p2={},
+        expected_excluded={},
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    "description, left_p1, left_p2, left_excluded, "
+    "right_p1, right_p2, right_excluded, "
+    "expected_p1, expected_p2, expected_excluded",
+    FILTER_RESULT_MERGE_CASES,
+)
+def test_filter_result_merge(
+    description: str,
+    left_p1: dict,
+    left_p2: dict,
+    left_excluded: dict,
+    right_p1: dict,
+    right_p2: dict,
+    right_excluded: dict,
+    expected_p1: dict,
+    expected_p2: dict,
+    expected_excluded: dict,
+) -> None:
+    left = FilterResult(p1=left_p1, p2=left_p2, excluded=left_excluded)
+    right = FilterResult(p1=right_p1, p2=right_p2, excluded=right_excluded)
+    merged = left.merge(right)
+    assert merged.p1 == expected_p1
+    assert merged.p2 == expected_p2
+    assert merged.excluded == expected_excluded
+    # originals must be unchanged
+    assert left.p1 == left_p1
+    assert right.p1 == right_p1

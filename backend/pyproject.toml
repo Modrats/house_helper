@@ -27,6 +27,17 @@ select = ["E", "F", "I", "W"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+addopts = "--cov=src --cov-report=term-missing --cov-fail-under=80"
+
+[tool.coverage.run]
+omit = [
+    "src/api/*",
+    "src/services/*",
+    "src/run.py",
+    "src/config.py",
+    "src/observability.py",
+    "src/core.py",
+]
 
 [dependency-groups]
 dev = [
