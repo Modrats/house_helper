@@ -12,6 +12,7 @@ import base64
 import json
 import logging
 from pathlib import Path
+from string import Template
 
 from pydantic import Field
 
@@ -27,27 +28,23 @@ SUPPORTED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 
 ROOM_TYPE_VALUES = [rt.value for rt in RoomType]
 
-CLASSIFICATION_PROMPT = (
-    "You are a real estate photo classifier. Classify this photo into exactly one room type.\n"
-    f"Valid room types: {', '.join(ROOM_TYPE_VALUES)}\n\n"
-    "Rules:\n"
-    "- confidence should reflect how clearly the photo shows that room type\n"
-    '- Use "unknown" if the photo is too ambiguous to classify\n'
-    '- Use "floor_plan" for architectural drawings or floor plans\n'
-    '- Use "exterior" for outside views of the whole building\n'
-    '- Use "garden" for outdoor garden/yard areas\n'
-)
+_PROMPTS_DIR = Path(__file__).parent.parent.parent / "prompts"
 
 
-class _VisionResponse(LLMResponse):
-    """Lightweight response model for the LLM structured output.
+class _ClassificationItem(LLMResponse):
+    """Single-image entry in the classification prompt response."""
 
-    Keeps ``filename`` out of the schema sent to the model — the model
-    doesn't know which file it's classifying.
-    """
-
+    label: str
     room_type: RoomType
     confidence: float = Field(ge=0.0, le=1.0)
+    description: str
+    group_id: int
+
+
+class _ClassificationResult(LLMResponse):
+    """Structured-output wrapper returned by the LLM for one batch call."""
+
+    results: list[_ClassificationItem]
 
 
 class AzureOpenAIRoomClassifier(IRoomClassifier):
@@ -71,6 +68,9 @@ class AzureOpenAIRoomClassifier(IRoomClassifier):
         self._input_dir = input_dir
         self._output_dir = output_dir
         self._batch_size = batch_size
+        self._prompt_template = Template(
+            (_PROMPTS_DIR / "classification_prompt.txt").read_text(encoding="utf-8")
+        )
 
     def classify_house(self, slug: str, *, batch_size: int = 0) -> HouseClassifications:
         """Classify all photos for a single house, skipping already-classified ones.
@@ -158,22 +158,32 @@ class AzureOpenAIRoomClassifier(IRoomClassifier):
             List of PhotoClassification results.
         """
         results: list[PhotoClassification] = []
+        room_types_str = ", ".join(ROOM_TYPE_VALUES)
+
         for photo_path in photos:
             image_data = base64.b64encode(photo_path.read_bytes()).decode("utf-8")
             media_type = _media_type_for(photo_path.suffix.lower())
+            prompt = self._prompt_template.substitute(
+                n_images=1,
+                image_labels="image_1",
+                room_types=room_types_str,
+            )
 
             resp = self._llm_service.classify_image(
-                prompt=CLASSIFICATION_PROMPT,
+                prompt=prompt,
                 image_b64=image_data,
                 media_type=media_type,
-                response_model=_VisionResponse,
+                response_model=_ClassificationResult,
             )
-            classification = PhotoClassification(
-                filename=photo_path.name,
-                room_type=resp.room_type,
-                confidence=resp.confidence,
-            )
-            results.append(classification)
+            if resp.results:
+                item = resp.results[0]
+                results.append(
+                    PhotoClassification(
+                        filename=photo_path.name,
+                        room_type=item.room_type,
+                        confidence=item.confidence,
+                    )
+                )
         return results
 
     @staticmethod
