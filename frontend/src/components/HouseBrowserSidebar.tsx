@@ -6,6 +6,7 @@ import type { HouseListItem } from '../types';
 function HouseBrowserSkeleton(): ReactNode {
   return (
     <nav className="house-browser" aria-label="House list">
+      <h2 className="house-browser__title">Browse Houses</h2>
       <div className="house-browser__search house-browser__search--skeleton" />
       <ul className="house-browser__list" role="list">
         {Array.from({ length: 5 }).map((_, i) => (
@@ -51,6 +52,7 @@ export function HouseBrowserSidebar({ className = '' }: HouseBrowserSidebarProps
 
   return (
     <nav className={`house-browser ${className}`} aria-label="House list">
+      <h2 className="house-browser__title">Browse Houses</h2>
       <div className="house-browser__search-wrapper">
         <label className="visually-hidden" htmlFor="house-filter">
           Filter houses
