@@ -8,7 +8,7 @@ export function NotFoundPage(): ReactNode {
   return (
     <div className="page page--not-found">
       <h2>Page Not Found</h2>
-      <p>The page you're looking for doesn't exist.</p>
+      <p>The page you&apos;re looking for doesn&apos;t exist.</p>
       <Link to="/">Go back to browsing houses</Link>
     </div>
   );
