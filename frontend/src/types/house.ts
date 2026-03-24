@@ -57,3 +57,11 @@ export interface HouseListItem {
   listing: Pick<HouseListingDetails, 'price' | 'livingArea' | 'bedrooms'>;
   thumbnailUrl?: string;
 }
+
+export interface RoomClassification {
+  roomType: string;
+  displayName: string;
+  photoCount: number;
+  hasImaginedVersion: boolean;
+  photos: HousePhoto[];
+}

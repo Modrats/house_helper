@@ -5,4 +5,5 @@ export type {
   HouseListingDetails,
   HouseRoom,
   HousePhoto,
+  RoomClassification,
 } from './house';
