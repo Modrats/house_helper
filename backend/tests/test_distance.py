@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.config import load_distance_config
+from src.config import ConfigLoader
 from src.models.distance import DistanceResult, TravelTime
 from src.services.distance_calculator import AzureMapsDistanceCalculator
 
@@ -530,7 +530,7 @@ distance:
     config_file = tmp_path / "criteria.yaml"
     config_file.write_text(config_content, encoding="utf-8")
 
-    destinations = load_distance_config(config_file)
+    destinations = ConfigLoader(config_file).distance_config()
     assert len(destinations) == 2
     assert destinations[0]["name"] == "Central Station"
     assert destinations[0]["modes"] == ["transit", "walking"]
@@ -548,4 +548,4 @@ storage:
     config_file.write_text(config_content, encoding="utf-8")
 
     with pytest.raises(KeyError):
-        load_distance_config(config_file)
+        ConfigLoader(config_file).distance_config()

@@ -40,3 +40,17 @@ llm_text_filter:
   excluded_criteria:
     - "located near a highway or industrial area"
     - "requires major renovation"
+
+photo_criteria:
+  kitchen:
+    required: ["dishwasher", "oven", "sink"]
+    preferred: ["island", "modern_cabinets"]
+  bathroom:
+    required: ["shower_or_bath", "toilet"]
+    preferred: ["double_sink", "heated_floor"]
+  bedroom:
+    required: ["bed"]
+    preferred: ["built_in_wardrobe", "natural_light"]
+  living_room:
+    required: []
+    preferred: ["fireplace", "natural_light", "open_plan"]

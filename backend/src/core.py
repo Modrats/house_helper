@@ -4,17 +4,19 @@ from __future__ import annotations
 
 import os
 
-from .config import load_distance_config, load_storage_paths
+from .config import ConfigLoader
 from .interfaces.data_source import IDataSource
 from .interfaces.distance_calculator import IDistanceCalculator
 from .interfaces.filter import IFilter
 from .interfaces.imagineering import IImagineeringService
+from .interfaces.photo_checker import IPhotoChecker
 from .interfaces.room_classifier import IRoomClassifier
 from .services.azure_openai_service import AzureOpenAIService
 from .services.distance_calculator import AzureMapsDistanceCalculator
 from .services.house_repository import HouseRepository
 from .services.imagineering_service import FluxImagineeringService
 from .services.local_storage import LocalStorage
+from .services.photo_checker import VisionPhotoChecker
 from .services.room_classifier import AzureOpenAIRoomClassifier
 from .services.text_filter_service import LLMTextFilterService
 
@@ -40,7 +42,7 @@ def create_repository() -> HouseRepository:
     Returns:
         A configured HouseRepository for house-specific operations.
     """
-    input_dir, output_dir = load_storage_paths()
+    input_dir, output_dir = ConfigLoader().storage_paths()
     return HouseRepository(create_storage(), input_dir, output_dir)
 
 
@@ -54,7 +56,7 @@ def create_room_classifier() -> IRoomClassifier:
         MissingConfigError: If Azure OpenAI credentials are not configured.
     """
     llm_service = AzureOpenAIService()
-    input_dir, output_dir = load_storage_paths()
+    input_dir, output_dir = ConfigLoader().storage_paths()
     batch_size = int(os.environ.get("ROOM_CLASSIFIER_BATCH_SIZE", "5"))
     return AzureOpenAIRoomClassifier(
         llm_service=llm_service,
@@ -80,8 +82,8 @@ def create_distance_calculator() -> IDistanceCalculator:
     if not api_key:
         raise RuntimeError("Missing required environment variable: AZURE_MAPS_KEY")
 
-    input_dir, output_dir = load_storage_paths()
-    destinations = load_distance_config()
+    input_dir, output_dir = ConfigLoader().storage_paths()
+    destinations = ConfigLoader().distance_config()
     return AzureMapsDistanceCalculator(
         api_key=api_key,
         input_dir=input_dir,
@@ -111,7 +113,7 @@ def create_imagineering_service() -> IImagineeringService:
     if missing:
         raise RuntimeError(f"Missing required environment variables: {', '.join(missing)}")
 
-    input_dir, output_dir = load_storage_paths()
+    input_dir, output_dir = ConfigLoader().storage_paths()
     seed_raw = os.environ.get("FLUX_SEED")
     return FluxImagineeringService(
         api_key=os.environ["FLUX_API_KEY"],
@@ -133,8 +135,29 @@ def create_llm_text_filter() -> IFilter:
         MissingConfigError: If Azure OpenAI credentials are not configured.
     """
     llm_service = AzureOpenAIService()
-    _, output_dir = load_storage_paths()
+    _, output_dir = ConfigLoader().storage_paths()
     return LLMTextFilterService(
         llm_service=llm_service,
         output_dir=output_dir,
+    )
+
+
+def create_photo_checker() -> IPhotoChecker:
+    """Create a photo criteria checker wired to the LLM service and storage paths.
+
+    Returns:
+        A configured IPhotoChecker implementation.
+
+    Raises:
+        MissingConfigError: If Azure OpenAI credentials are not configured.
+        KeyError: If photo_criteria section is missing from config.
+    """
+    llm_service = AzureOpenAIService()
+    input_dir, output_dir = ConfigLoader().storage_paths()
+    criteria = ConfigLoader().photo_criteria()
+    return VisionPhotoChecker(
+        llm_service=llm_service,
+        input_dir=input_dir,
+        output_dir=output_dir,
+        criteria=criteria,
     )

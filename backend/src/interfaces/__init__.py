@@ -9,6 +9,7 @@ from .distance_calculator import IDistanceCalculator
 from .filter import IFilter
 from .imagineering import IImagineeringService
 from .llm_service import ILLMService
+from .photo_checker import IPhotoChecker
 from .room_classifier import IRoomClassifier
 
 __all__ = [
@@ -17,5 +18,6 @@ __all__ = [
     "IFilter",
     "IImagineeringService",
     "ILLMService",
+    "IPhotoChecker",
     "IRoomClassifier",
 ]

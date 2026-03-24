@@ -48,3 +48,12 @@
 - Sample destinations (Amsterdam Central, Office) added to `config/criteria.yaml`.
 - Tests: 21 parametrised cases, NamedTuple + `@pytest.mark.parametrize`. Mocks `requests.get` at the service module boundary.
 - `House` model already has `distances: dict[str, int]` and `with_distance()` — ready for pipeline integration.
+
+### 2026-03-24: ConfigLoader refactor (PR #57 review response)
+
+- **Decision**: Replaced 4 `load_*()` functions + `_load_raw()` + public globals with a single `ConfigLoader` class in `config.py`. Each function called `_load_raw()` independently; `ConfigLoader._load()` lazy-caches the YAML and is called once per instance.
+- **Public API is the class**: `ConfigLoader(path)` or `ConfigLoader()` for default. Methods: `criteria()`, `storage_paths()`, `distance_config()`, `photo_criteria()`. Caller doesn't need to know the path OR that it's YAML-backed.
+- **Private module constants**: `_DEFAULT_YAML` and `_REPO_ROOT` (underscore-prefixed) are implementation details, not the public API the reviewer objected to. They're necessary because Python classes can't resolve `__file__` at class body level conveniently.
+- **Backward compat**: No thin wrappers added — updated all callers (core.py × 5 sites, run.py × 1, test_photo_checker.py × 3) directly. Cleaner than maintaining wrapper functions.
+- **Swappable unit**: The class IS the swap point per the reviewer's request. An `AzureAppConfigLoader` would expose the same 4 methods.
+- **Branch discipline**: Be explicit about which branch you're on before committing. `git branch --show-current` before any `git add`. This refactor accidentally committed to squad/11 first, required undo + re-apply on squad/10.

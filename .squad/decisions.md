@@ -104,3 +104,68 @@ If a lint check, type check, or test fails, agents MUST fix the issue — never 
 - **Scribe's git commit scope is strictly `.squad/` only.** Never stage or commit files outside `.squad/`.
 - Scribe MAY open PRs, but only for `.squad/` documentation updates — never for domain work.
 - Violation: Scribe committed evaluation source files directly to main (2026-03-24). Rebased and corrected.
+
+---
+
+### 2026-03-24: IaC scope reduced to Container Apps + Static Web Apps
+
+**By:** Terri Modrakowski (directive)
+**What:** `infra/plan.md` rewritten to deploy only backend (Container Apps) and frontend (Static Web Apps). All other Azure resources deferred.
+**Why:** Start simple. Complexity can be added once the basic deploy works.
+
+---
+
+### 2026-03-24: Static Web Apps must use westeurope, not francecentral
+
+**By:** Zero
+**What:** `azurerm_static_web_app` does not support `francecentral`. Used `westeurope` for SWA only; all other resources use `var.location` (default `francecentral`). Comment in `main.tf` explains this.
+**Why:** Azure limitation — SWA region availability is restricted.
+
+---
+
+### 2026-03-24: Docker Infrastructure Conventions
+
+**By:** Zero (Backend Dev) | **Issue:** #34 | **PR:** #36
+
+1. **uv via multi-stage copy** — `COPY --from=ghcr.io/astral-sh/uv:latest` instead of `pip install uv`. Keeps pip out of the build entirely per team directive.
+2. **nginx as API proxy** — Frontend nginx proxies `/api/` to `http://backend:8000/api/`. Frontend needs no CORS config; `VITE_API_BASE_URL=/api` works in both dev and Docker.
+3. **Volume mounts for data** — `input_data/` and `outputs/` are mounted as Docker volumes so local files flow through without rebuilding.
+4. **Non-root runtime** — Backend container runs as `appuser` (uid 1000) for security.
+
+---
+
+### 2026-03-24: PR #41 Review Fixes — CORS, IDataSource, HouseRepository
+
+**By:** Zero | **PR:** #41 (`squad/13-fastapi-endpoints`)
+
+1. **CORS headers must be explicit when credentials are enabled** — `allow_headers=["*"]` rejected alongside `allow_credentials=True`. Using `["Content-Type", "Authorization"]` instead. (OWASP A05)
+2. **`IDataSource` is a generic CRUD interface** — defines `read_json`, `write_json`, `list_keys`, `read_bytes`, `exists`. No domain concepts (no houses, rooms, or pipeline stages) at interface level.
+3. **`HouseRepository` owns all house-domain storage logic** — wraps `IDataSource`; provides `load_houses`, `save_filter_results`, `list_houses`, `get_house`, `get_photos`, `get_room_classifications`, `get_criteria_results`, `get_imagineered_photos`, `get_photo_bytes`, `get_imagineered_photo_bytes`.
+4. **Criteria drift detection moved from `LocalStorage` → `HouseRepository`** — `_criteria_match` and `_restore_filter_state` are business logic, not storage logic.
+5. **Photos served via API endpoints, not static directory mounts** — `GET /api/houses/{slug}/photos/{filename}` and `GET /api/houses/{slug}/imagineered/{filename}`. `StaticFiles` mounts removed from `app.py`.
+6. **`Settings` reads all env vars without defaults** — raises `KeyError` if missing. Per team decision: no hardcoded defaults for env vars.
+
+---
+
+### 2026-03-24: Switch Distance Calculator from Google Maps to Azure Maps
+
+**By:** Zero (Backend Dev) | **PR:** #52 (`squad/11-distance-calculator`) | **Requested by:** Terri Modrakowski
+
+Replace `GoogleMapsDistanceCalculator` with `AzureMapsDistanceCalculator`. Azure Maps is already in the Azure subscription — no new dependency or cost centre needed.
+
+Two API calls per route: geocode (`atlas.microsoft.com/search/address/json`) then route (`atlas.microsoft.com/route/directions/json`). Environment variable: `AZURE_MAPS_KEY`.
+
+| App mode | Azure Maps `travelMode` |
+|----------|------------------------|
+| driving  | car |
+| walking  | pedestrian |
+| transit  | bus |
+| cycling  | unsupported — log warning, return `None` |
+
+---
+
+### 2026-03-24: ConfigLoader class for pipeline configuration
+
+**By:** Zero (Backend Dev) | **PR:** #57
+
+Replace scattered `load_*()` functions and `_load_raw()` helper with a `ConfigLoader` class. YAML is parsed at most once per instance (lazy + cached). Public module-level constants (`DEFAULT_CONFIG_PATH`, `REPO_ROOT`) made private (`_DEFAULT_YAML`, `_REPO_ROOT`). No backward-compat wrappers — callers (`core.py`, `run.py`) updated directly. `ConfigLoader` is the swappable unit for future cloud-backed config sources.
