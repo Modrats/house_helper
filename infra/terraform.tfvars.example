@@ -9,13 +9,13 @@
 # Required — find yours with: az account show --query id -o tsv
 subscription_id = "00000000-0000-0000-0000-000000000000"
 
-location    = "francecentral"
+location    = "westeurope"
 app_prefix  = "househelper"
 environment = "dev"
 
 # Full image ref — set after first `terraform apply` creates the ACR,
 # then push your image and update this value.
-backend_image = "househelperdevacr.azurecr.io/backend:latest"
+backend_image = "crhousehelperdev.azurecr.io/backend:latest"
 
 backend_cpu          = 0.5
 backend_memory       = "1Gi"

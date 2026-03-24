@@ -4,10 +4,10 @@ set -euo pipefail
 # One-time bootstrap: create remote state storage for Terraform.
 # Run this once before `terraform init`.
 
-RESOURCE_GROUP="househelper-tfstate-rg"
-STORAGE_ACCOUNT="househelpertfstate"
+RESOURCE_GROUP="rg-househelper-tfstate"
+STORAGE_ACCOUNT="sthousehelpertfstate"
 CONTAINER="tfstate"
-LOCATION="${1:-francecentral}"
+LOCATION="${1:-westeurope}"
 
 echo "==> Creating resource group: ${RESOURCE_GROUP} in ${LOCATION}"
 az group create \

@@ -7,8 +7,8 @@ terraform {
   }
 
   backend "azurerm" {
-    resource_group_name  = "househelper-tfstate-rg"
-    storage_account_name = "househelpertfstate"
+    resource_group_name  = "rg-househelper-tfstate"
+    storage_account_name = "sthousehelpertfstate"
     container_name       = "tfstate"
     key                  = "dev.terraform.tfstate"
   }
@@ -22,14 +22,14 @@ provider "azurerm" {
 
 # 1. Resource Group
 resource "azurerm_resource_group" "main" {
-  name     = "${var.app_prefix}-${var.environment}-rg"
+  name     = "rg-${var.app_prefix}-${var.environment}"
   location = var.location
 }
 
 # 2. Container Registry
-# ACR names must be globally unique and alphanumeric only — no hyphens.
+# ACR names must be globally unique and alphanumeric only — no hyphens. CAF prefix: cr.
 resource "azurerm_container_registry" "main" {
-  name                = "${var.app_prefix}${var.environment}acr"
+  name                = "cr${var.app_prefix}${var.environment}"
   location            = azurerm_resource_group.main.location
   resource_group_name = azurerm_resource_group.main.name
   sku                 = "Basic"
@@ -42,7 +42,7 @@ resource "azurerm_container_registry" "main" {
 
 # 3. Log Analytics Workspace (required by Container Apps Environment)
 resource "azurerm_log_analytics_workspace" "main" {
-  name                = "${var.app_prefix}-${var.environment}-logs"
+  name                = "log-${var.app_prefix}-${var.environment}"
   location            = azurerm_resource_group.main.location
   resource_group_name = azurerm_resource_group.main.name
   sku                 = "PerGB2018"
@@ -51,7 +51,7 @@ resource "azurerm_log_analytics_workspace" "main" {
 
 # 4. Container Apps Environment
 resource "azurerm_container_app_environment" "main" {
-  name                       = "${var.app_prefix}-${var.environment}-env"
+  name                       = "cae-${var.app_prefix}-${var.environment}"
   location                   = azurerm_resource_group.main.location
   resource_group_name        = azurerm_resource_group.main.name
   log_analytics_workspace_id = azurerm_log_analytics_workspace.main.id
@@ -63,7 +63,7 @@ resource "azurerm_container_app_environment" "main" {
 
 # 5. Container App (backend FastAPI)
 resource "azurerm_container_app" "backend" {
-  name                         = "${var.app_prefix}-${var.environment}-backend"
+  name                         = "ca-${var.app_prefix}-${var.environment}-backend"
   location                     = azurerm_resource_group.main.location
   resource_group_name          = azurerm_resource_group.main.name
   container_app_environment_id = azurerm_container_app_environment.main.id
@@ -104,9 +104,9 @@ resource "azurerm_container_app" "backend" {
 }
 
 # 6. Storage Account (Blob + Tables for app data)
-# Storage account names must be alphanumeric only — no hyphens.
+# Storage account names must be alphanumeric only — no hyphens. CAF prefix: st.
 resource "azurerm_storage_account" "main" {
-  name                     = "${var.app_prefix}${var.environment}store"
+  name                     = "st${var.app_prefix}${var.environment}"
   location                 = azurerm_resource_group.main.location
   resource_group_name      = azurerm_resource_group.main.name
   account_tier             = "Standard"
@@ -119,13 +119,10 @@ resource "azurerm_storage_account" "main" {
 }
 
 # 7. Static Web App (React frontend)
-# NOTE: azurerm_static_web_app does NOT support francecentral — region availability for SWA
-# is limited. westeurope is the closest supported region. All other resources use
-# var.location (francecentral). This is an Azure platform limitation, not a config choice.
 resource "azurerm_static_web_app" "frontend" {
-  name                = "${var.app_prefix}-${var.environment}-frontend"
+  name                = "stapp-${var.app_prefix}-${var.environment}"
   resource_group_name = azurerm_resource_group.main.name
-  location            = "westeurope"
+  location            = var.location
   sku_tier            = "Free"
   sku_size            = "Free"
 

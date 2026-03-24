@@ -4,9 +4,9 @@ variable "subscription_id" {
 }
 
 variable "location" {
-  description = "Primary Azure region for all resources (except Static Web Apps — see main.tf)."
+  description = "Primary Azure region for all resources."
   type        = string
-  default     = "francecentral"
+  default     = "westeurope"
 }
 
 variable "app_prefix" {
