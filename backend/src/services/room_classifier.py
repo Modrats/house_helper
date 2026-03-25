@@ -84,7 +84,7 @@ class AzureOpenAIRoomClassifier(IRoomClassifier):
         """
         effective_batch_size = batch_size if batch_size > 0 else self._batch_size
         photos = self._discover_photos(slug)
-        output_file = self._output_dir / "houses" / slug / "room_classifications.json"
+        output_file = self._output_dir / slug / "room_classifications.json"
 
         if not photos:
             return HouseClassifications(slug=slug)
@@ -134,7 +134,7 @@ class AzureOpenAIRoomClassifier(IRoomClassifier):
         Returns:
             Sorted list of photo paths, or empty list if dir missing.
         """
-        photos_dir = self._input_dir / "houses" / slug / "photos"
+        photos_dir = self._input_dir / slug / "photos"
         if not photos_dir.exists():
             logger.warning("No photos directory for house '%s'", slug)
             return []

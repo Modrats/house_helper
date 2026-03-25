@@ -104,10 +104,10 @@ export function PhotoLightbox({
           <img
             className="lightbox__image"
             src={photo.url}
-            alt={photo.caption ?? 'Room photo'}
+            alt={photo.filename}
           />
-          {photo.caption && (
-            <figcaption className="lightbox__caption">{photo.caption}</figcaption>
+          {photo.imagineered_url && (
+            <figcaption className="lightbox__caption">{photo.filename}</figcaption>
           )}
         </figure>
 

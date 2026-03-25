@@ -20,3 +20,4 @@ experiments/**/.env
 **/__pycache__/
 **/*.pyc
 **/*.pyo
+infra/terraform.tfvars

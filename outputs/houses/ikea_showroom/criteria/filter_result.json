@@ -1,0 +1,125 @@
+{
+  "slug": "ikea_showroom",
+  "status": "evaluated",
+  "filter_results": {
+    "p1": {
+      "garden": true,
+      "kitchen_oven": true,
+      "kitchen_sink": true,
+      "kitchen_island": true,
+      "kitchen_modern_cabinets": true,
+      "living_room_natural_light": true,
+      "living_room_open_plan": true,
+      "commute_Amsterdam_Central": true
+    },
+    "p2": {
+      "garage": false,
+      "dishwasher": true,
+      "garden": false,
+      "living_room_fireplace": false
+    },
+    "excluded": {
+      "highway": false,
+      "industrial": false
+    },
+    "passed": true
+  },
+  "criteria_hash": "4b48db8b2231d4ab",
+  "photo_criteria": [
+    {
+      "room_type": "kitchen",
+      "photo_filename": "052b2a2e-6694-41d4-8b0c-d3bf5485fd1c.jpeg",
+      "meets_required": true,
+      "meets_preferred": true,
+      "required_features": [
+        {
+          "feature_name": "oven",
+          "present": true,
+          "confidence": 0.98,
+          "notes": "A built-in oven is visible under the countertop to the left of the sink area."
+        },
+        {
+          "feature_name": "sink",
+          "present": true,
+          "confidence": 0.99,
+          "notes": "A sink with a faucet is clearly visible in the center of the countertop."
+        }
+      ],
+      "preferred_features": [
+        {
+          "feature_name": "island",
+          "present": false,
+          "confidence": 0.95,
+          "notes": "There is a dining table in the foreground, but no separate kitchen island structure is visible."
+        },
+        {
+          "feature_name": "modern_cabinets",
+          "present": true,
+          "confidence": 0.97,
+          "notes": "The cabinets have a sleek, handleless design typical of modern kitchen styles."
+        }
+      ]
+    },
+    {
+      "room_type": "kitchen",
+      "photo_filename": "9563c53b-4725-4e8a-92f1-3bdeb6dcbf9d.jpeg",
+      "meets_required": true,
+      "meets_preferred": true,
+      "required_features": [
+        {
+          "feature_name": "oven",
+          "present": true,
+          "confidence": 0.98,
+          "notes": "A built-in oven is clearly visible in the cabinetry on the left side of the image."
+        },
+        {
+          "feature_name": "sink",
+          "present": true,
+          "confidence": 0.95,
+          "notes": "A sink with a faucet is visible on the left countertop beneath the window."
+        }
+      ],
+      "preferred_features": [
+        {
+          "feature_name": "island",
+          "present": true,
+          "confidence": 0.97,
+          "notes": "A central island with stools is visible in the middle of the kitchen area."
+        },
+        {
+          "feature_name": "modern_cabinets",
+          "present": true,
+          "confidence": 0.99,
+          "notes": "The cabinetry has a sleek, handleless design typical of modern kitchen styles."
+        }
+      ]
+    },
+    {
+      "room_type": "living_room",
+      "photo_filename": "Screenshot 2026-02-18 212756.png",
+      "meets_required": true,
+      "meets_preferred": true,
+      "required_features": [],
+      "preferred_features": [
+        {
+          "feature_name": "fireplace",
+          "present": false,
+          "confidence": 1.0,
+          "notes": "No fireplace or mantel is visible anywhere in the living room."
+        },
+        {
+          "feature_name": "natural_light",
+          "present": true,
+          "confidence": 0.95,
+          "notes": "Sunlight is coming through a sheer curtain on the window, indicating natural light."
+        },
+        {
+          "feature_name": "open_plan",
+          "present": true,
+          "confidence": 0.9,
+          "notes": "The living room opens directly into a dining area without a separating wall, suggesting an open-plan layout."
+        }
+      ]
+    }
+  ]
+}

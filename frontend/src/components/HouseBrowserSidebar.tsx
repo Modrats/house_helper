@@ -19,9 +19,12 @@ function HouseBrowserSkeleton(): ReactNode {
   );
 }
 
-function formatAddress(house: HouseListItem): string {
-  const { street, houseNumber, city } = house.address;
-  return `${street} ${houseNumber}, ${city}`;
+function formatSlug(slug: string): string {
+  return slug.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function statusBadge(house: HouseListItem): string {
+  return house.status === 'filtered' && house.has_filter_results ? ' ✓' : '';
 }
 
 interface HouseBrowserSidebarProps {
@@ -30,7 +33,7 @@ interface HouseBrowserSidebarProps {
 
 export function HouseBrowserSidebar({ className = '' }: HouseBrowserSidebarProps): ReactNode {
   const navigate = useNavigate();
-  const { houseId: activeHouseId } = useParams<{ houseId: string }>();
+  const { houseId: activeSlug } = useParams<{ houseId: string }>();
   const { data: houses, isLoading, error } = useHouses();
   const [filter, setFilter] = useState('');
 
@@ -47,7 +50,7 @@ export function HouseBrowserSidebar({ className = '' }: HouseBrowserSidebarProps
   }
 
   const filtered = (houses ?? []).filter((h) =>
-    formatAddress(h).toLowerCase().includes(filter.toLowerCase())
+    h.slug.toLowerCase().includes(filter.toLowerCase())
   );
 
   return (
@@ -72,16 +75,16 @@ export function HouseBrowserSidebar({ className = '' }: HouseBrowserSidebarProps
       ) : (
         <ul className="house-browser__list" role="list">
           {filtered.map((house) => {
-            const isActive = house.id === activeHouseId;
+            const isActive = house.slug === activeSlug;
             return (
-              <li key={house.id} className="house-item">
+              <li key={house.slug} className="house-item">
                 <button
                   type="button"
                   className={`house-item__button${isActive ? ' house-item__button--active' : ''}`}
-                  onClick={() => navigate(`/house/${house.id}`)}
+                  onClick={() => navigate(`/house/${house.slug}`)}
                   aria-current={isActive ? 'page' : undefined}
                 >
-                  {formatAddress(house)}
+                  {formatSlug(house.slug)}{statusBadge(house)}
                 </button>
               </li>
             );

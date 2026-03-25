@@ -10,6 +10,7 @@ Uses structured output via ILLMService — no manual JSON parsing needed.
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import logging
 from pathlib import Path
@@ -94,7 +95,8 @@ class VisionPhotoChecker(IPhotoChecker):
             return PhotoCriteriaResult(slug=slug)
 
         output_file = self._output_dir / slug / "photo_criteria.json"
-        existing = self._load_previous_results(output_file)
+        criteria_hash = self._hash_criteria()
+        existing = self._load_previous_results(output_file, criteria_hash)
         already_checked = {r.photo_filename for r in existing}
 
         to_check = [c for c in classifications if c["filename"] not in already_checked]
@@ -122,7 +124,7 @@ class VisionPhotoChecker(IPhotoChecker):
         all_results = existing + new_results
         house_result = PhotoCriteriaResult(slug=slug, room_results=all_results)
 
-        self._save_results(output_file, house_result)
+        self._save_results(output_file, house_result, criteria_hash)
         logger.info(
             "Checked %d photos for '%s' (%d new)",
             len(all_results),
@@ -248,28 +250,37 @@ class VisionPhotoChecker(IPhotoChecker):
         Returns:
             Path to the photo, or None if not found.
         """
-        photo_path = self._input_dir / "houses" / slug / "photos" / filename
+        photo_path = self._input_dir / slug / "photos" / filename
         if photo_path.is_file():
             return photo_path
         return None
 
+    def _hash_criteria(self) -> str:
+        """Return a short hash of the current photo criteria for drift detection."""
+        blob = json.dumps(self._criteria, sort_keys=True).encode()
+        return hashlib.sha256(blob).hexdigest()[:16]
+
     @staticmethod
     def _load_previous_results(
         output_file: Path,
+        criteria_hash: str | None = None,
     ) -> list[RoomCriteriaResult]:
         """Load previously saved criteria results for idempotent re-runs.
 
-        Args:
-            output_file: Path to the photo_criteria.json file.
-
-        Returns:
-            List of previously saved RoomCriteriaResult objects, or empty list.
+        Returns an empty list (forcing a full re-check) if the file is missing,
+        corrupt, or was generated with different criteria.
         """
         if not output_file.exists():
             return []
 
         try:
             data = json.loads(output_file.read_text(encoding="utf-8"))
+            if criteria_hash and data.get("criteria_hash") != criteria_hash:
+                logger.info(
+                    "Photo criteria changed for %s — re-checking all photos",
+                    output_file.parent.name,
+                )
+                return []
             results = []
             for entry in data.get("room_results", []):
                 results.append(
@@ -294,16 +305,20 @@ class VisionPhotoChecker(IPhotoChecker):
             return []
 
     @staticmethod
-    def _save_results(output_file: Path, results: PhotoCriteriaResult) -> None:
+    def _save_results(
+        output_file: Path, results: PhotoCriteriaResult, criteria_hash: str | None = None
+    ) -> None:
         """Persist criteria check results to JSON.
 
         Args:
             output_file: Destination path for photo_criteria.json.
             results: Criteria results to persist.
+            criteria_hash: Hash of the criteria used, for drift detection.
         """
         output_file.parent.mkdir(parents=True, exist_ok=True)
         payload = {
             "slug": results.slug,
+            "criteria_hash": criteria_hash,
             "room_results": results.to_detailed_dict(),
         }
         output_file.write_text(

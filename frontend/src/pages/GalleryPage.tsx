@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useRoomClassifications } from '../hooks/useRoomClassifications';
+import { usePhotos } from '../hooks/usePhotos';
 import { RoomSidebar } from '../components/RoomSidebar';
 import { PhotoGrid } from '../components/PhotoGrid';
 import { BeforeAfterSlider } from '../components/BeforeAfterSlider';
@@ -14,7 +15,16 @@ export function GalleryPage(): ReactNode {
   const { houseId } = useParams<{ houseId: string }>();
   const [selectedRoomType, setSelectedRoomType] = useState<string | null>(null);
 
-  const { data: rooms, isLoading } = useRoomClassifications(houseId);
+  const { data: rooms, isLoading: roomsLoading } = useRoomClassifications(houseId);
+
+  const roomList = rooms ?? [];
+  const effectiveRoomType = selectedRoomType ?? roomList[0]?.room_type ?? null;
+
+  const { data: photos, isLoading: photosLoading } = usePhotos(houseId, effectiveRoomType);
+  const selectedRoom = roomList.find((r) => r.room_type === effectiveRoomType) ?? null;
+
+  // Find a photo that has an imagineered version for the before/after slider
+  const sliderPhoto = (photos ?? []).find((p) => p.imagineered_url != null);
 
   if (!houseId) {
     return (
@@ -25,10 +35,6 @@ export function GalleryPage(): ReactNode {
       </div>
     );
   }
-
-  const roomList = rooms ?? [];
-  const selectedRoom = roomList.find((r) => r.roomType === selectedRoomType) ?? roomList[0] ?? null;
-  const effectiveRoomType = selectedRoom?.roomType ?? null;
 
   return (
     <div className="page page--gallery" style={galleryStyle}>
@@ -48,29 +54,22 @@ export function GalleryPage(): ReactNode {
             rooms={roomList}
             selectedRoomType={effectiveRoomType}
             onSelectRoom={setSelectedRoomType}
-            isLoading={isLoading}
+            isLoading={roomsLoading}
           />
         </div>
 
         <main className="gallery-layout__main" aria-label="Photo grid">
-          {selectedRoom?.hasImaginedVersion && selectedRoom.photos.length > 0 && (() => {
-            const original = selectedRoom.photos.find((p) => !p.isImaginedVersion);
-            const transformed = selectedRoom.photos.find((p) => p.isImaginedVersion);
-            if (original && transformed) {
-              return (
-                <BeforeAfterSlider
-                  original={original.url}
-                  transformed={transformed.url}
-                  label={selectedRoom.displayName}
-                />
-              );
-            }
-            return null;
-          })()}
+          {sliderPhoto?.imagineered_url && (
+            <BeforeAfterSlider
+              original={sliderPhoto.url}
+              transformed={sliderPhoto.imagineered_url}
+              label={selectedRoom?.display_name ?? 'Room'}
+            />
+          )}
           <PhotoGrid
-            photos={selectedRoom?.photos ?? []}
-            roomName={selectedRoom?.displayName ?? 'Room'}
-            isLoading={isLoading}
+            photos={photos ?? []}
+            roomName={selectedRoom?.display_name ?? 'Room'}
+            isLoading={photosLoading}
           />
         </main>
       </div>

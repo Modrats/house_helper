@@ -8,7 +8,7 @@ interface UseRoomClassificationsResult {
 }
 
 async function fetchRoomClassifications(houseId: string): Promise<RoomClassification[]> {
-  const res = await fetch(`/api/houses/${houseId}/room-classifications`);
+  const res = await fetch(`/api/houses/${houseId}/rooms`);
   if (!res.ok) throw new Error('Failed to fetch room classifications');
   return res.json() as Promise<RoomClassification[]>;
 }

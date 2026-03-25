@@ -11,11 +11,13 @@ repository needs to change when the house data shape evolves.
 
 from __future__ import annotations
 
+import hashlib
+import json
 from pathlib import Path
 from typing import Any
 
 from ..interfaces.data_source import IDataSource
-from ..models.house import FilterResult, House, HouseStatus
+from ..models.house import FilterResult, House, HouseMetadata, HouseStatus
 from ..models.room import Photo
 from ..observability import get_logger
 
@@ -70,28 +72,42 @@ class HouseRepository:
 
             listing_text = self._storage.read_bytes(listing_file).decode("utf-8").strip()
             status, filter_results = self._restore_filter_state(house_dir.name, criteria)
+            metadata = self._load_metadata(house_dir)
             houses.append(
                 House(
                     slug=house_dir.name,
                     listing_text=listing_text,
                     status=status,
                     filter_results=filter_results,
+                    metadata=metadata,
                 )
             )
         return houses
 
-    def save_filter_results(self, houses: list[House]) -> None:
+    def save_filter_results(
+        self, houses: list[House], criteria: dict[str, Any] | None = None
+    ) -> None:
         """Write filter results for each house to output storage.
 
         Args:
             houses: Houses with filter_results populated by the pipeline.
+            criteria: Current criteria dict — saved as a hash for drift detection.
         """
+        criteria_hash = self._hash_criteria(criteria) if criteria is not None else None
         for house in houses:
             output_path = self._output_dir / house.slug / "criteria" / "filter_result.json"
-            self._storage.write_json(
-                output_path,
-                house.model_dump(include={"slug", "status", "filter_results"}),
-            )
+            payload = house.model_dump(include={"slug", "status", "filter_results"})
+            if criteria_hash is not None:
+                payload["criteria_hash"] = criteria_hash
+            # Embed per-feature photo criteria detail when available
+            photo_criteria_file = self._output_dir / house.slug / "photo_criteria.json"
+            if photo_criteria_file.exists():
+                try:
+                    pc = json.loads(photo_criteria_file.read_text(encoding="utf-8"))
+                    payload["photo_criteria"] = pc.get("room_results", [])
+                except (json.JSONDecodeError, KeyError):
+                    pass
+            self._storage.write_json(output_path, payload)
 
     # -- Query methods (API layer) ----------------------------------------------
 
@@ -132,11 +148,13 @@ class HouseRepository:
                 if f.suffix.lower() in _IMAGE_EXTENSIONS:
                     photos.append(Photo(filename=f.name, path=str(f.relative_to(self._input_dir))))
 
+        metadata = self._load_metadata(house_dir)
         return House(
             slug=slug,
             listing_text=listing_text,
             status=status,
             filter_results=filter_results,
+            metadata=metadata,
             photos=photos,
         )
 
@@ -158,11 +176,20 @@ class HouseRepository:
         ]
 
     def get_room_classifications(self, slug: str) -> dict[str, list[str]]:
-        """Get room-to-photo mappings from classifier output."""
-        classifications_file = self._output_dir / slug / "classifications.json"
+        """Get room-to-photo mappings from classifier output.
+
+        Returns a dict of {room_type: [filename, ...]} built from the
+        detailed classification JSON written by AzureOpenAIRoomClassifier.
+        """
+        classifications_file = self._output_dir / slug / "room_classifications.json"
         if not self._storage.exists(classifications_file):
             return {}
-        return self._storage.read_json(classifications_file)
+        data = self._storage.read_json(classifications_file)
+        result: dict[str, list[str]] = {}
+        for item in data.get("classifications", []):
+            room = item["room_type"]
+            result.setdefault(room, []).append(item["filename"])
+        return result
 
     def get_criteria_results(self, slug: str) -> FilterResult:
         """Get criteria pass/fail results from pipeline output."""
@@ -205,6 +232,17 @@ class HouseRepository:
 
     # -- Private helpers --------------------------------------------------------
 
+    def _load_metadata(self, house_dir: Path) -> HouseMetadata:
+        """Load optional metadata.json from a house folder.
+
+        Returns an empty HouseMetadata if the file doesn't exist.
+        """
+        metadata_file = house_dir / "metadata.json"
+        if self._storage.exists(metadata_file):
+            data = self._storage.read_json(metadata_file)
+            return HouseMetadata(**data)
+        return HouseMetadata()
+
     def _restore_filter_state(
         self,
         slug: str,
@@ -229,29 +267,27 @@ class HouseRepository:
         return status, filter_results
 
     @staticmethod
+    def _hash_criteria(criteria: dict[str, Any]) -> str:
+        """Return a short stable hash of the criteria dict."""
+        blob = json.dumps(criteria, sort_keys=True).encode()
+        return hashlib.sha256(blob).hexdigest()[:16]
+
+    @staticmethod
     def _criteria_match(
         saved: dict[str, Any],
         current_criteria: dict[str, Any],
     ) -> bool:
-        """Check if saved filter results cover the same criteria as the current config.
+        """Return True if saved results were generated with the same criteria.
 
-        Detects criteria drift: if the config has changed since the last run,
-        saved results are stale and the house must be re-processed.
-
-        Args:
-            saved: Parsed JSON from a prior filter_result.json.
-            current_criteria: Current criteria dict from config.
-
-        Returns:
-            True if the criteria keys still match.
+        Compares the persisted criteria_hash (written by save_filter_results)
+        against a fresh hash of the current config.  Falls back to True when
+        no hash was saved (results written before this field was introduced),
+        so old outputs are never spuriously invalidated.
         """
-        saved_fr = saved.get("filter_results", {})
-        saved_p1 = set(saved_fr.get("p1", {}).keys())
-        saved_p2 = set(saved_fr.get("p2", {}).keys())
-        saved_excl = set(saved_fr.get("excluded", {}).keys())
-
-        current_p1 = set(current_criteria.get("p1_keywords", []))
-        current_p2 = set(current_criteria.get("p2_keywords", []))
-        current_excl = set(current_criteria.get("excluded_keywords", []))
-
-        return saved_p1 == current_p1 and saved_p2 == current_p2 and saved_excl == current_excl
+        saved_hash = saved.get("criteria_hash")
+        if saved_hash is None:
+            return True  # pre-hash output — don't invalidate
+        current_hash = hashlib.sha256(
+            json.dumps(current_criteria, sort_keys=True).encode()
+        ).hexdigest()[:16]
+        return saved_hash == current_hash

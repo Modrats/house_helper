@@ -27,7 +27,8 @@ def create_app() -> FastAPI:
     - API routes (including photo-serving endpoints)
     - OpenAPI metadata
     """
-    cors_origins = [o.strip() for o in os.environ["CORS_ORIGINS"].split(",") if o.strip()]
+    cors_raw = os.environ.get("CORS_ORIGINS", "http://localhost:5173")
+    cors_origins = [o.strip() for o in cors_raw.split(",") if o.strip()]
 
     app = FastAPI(
         title="House Helper API",
@@ -53,3 +54,7 @@ def create_app() -> FastAPI:
 
     logger.info("House Helper API ready — docs at /docs")
     return app
+
+
+# Module-level instance for uvicorn: `uvicorn src.api.app:app --reload`
+app = create_app()

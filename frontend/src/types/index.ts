@@ -1,9 +1,7 @@
 export type {
   House,
   HouseListItem,
-  HouseAddress,
-  HouseListingDetails,
-  HouseRoom,
   HousePhoto,
+  FilterResult,
   RoomClassification,
 } from './house';

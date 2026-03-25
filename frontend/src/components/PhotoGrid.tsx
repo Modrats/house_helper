@@ -48,22 +48,20 @@ export function PhotoGrid({ photos, roomName, isLoading = false }: PhotoGridProp
         aria-label={`${roomName} photos`}
       >
         {photos.map((photo, index) => (
-          <div key={photo.id} className="photo-card" role="listitem">
+          <div key={photo.filename} className="photo-card" role="listitem">
             <button
               type="button"
               className="photo-card__button"
               onClick={() => openLightbox(index)}
-              aria-label={photo.caption ?? `${roomName} photo ${index + 1}`}
+              aria-label={`${roomName} photo ${index + 1}`}
             >
               <img
                 className="photo-card__image"
                 src={photo.url}
-                srcSet={`${photo.url}?w=200 200w, ${photo.url}?w=400 400w`}
-                sizes="(max-width: 600px) 200px, 400px"
-                alt={photo.caption ?? `${roomName} photo ${index + 1}`}
+                alt={`${roomName} photo ${index + 1}`}
                 loading="lazy"
               />
-              {photo.isImaginedVersion && (
+              {photo.imagineered_url && (
                 <span className="photo-card__badge" aria-label="Imagineered version">
                   ✨ Imagineered
                 </span>

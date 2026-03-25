@@ -39,25 +39,18 @@ export function RoomSidebar({
       <h3 className="room-sidebar__title">Rooms</h3>
       <ul className="room-sidebar__list" role="list">
         {rooms.map((room) => {
-          const isActive = room.roomType === selectedRoomType;
+          const isActive = room.room_type === selectedRoomType;
           return (
-            <li key={room.roomType} className="room-sidebar__item">
+            <li key={room.room_type} className="room-sidebar__item">
               <button
                 type="button"
                 className={`room-sidebar__button${isActive ? ' room-sidebar__button--active' : ''}`}
-                onClick={() => onSelectRoom(room.roomType)}
+                onClick={() => onSelectRoom(room.room_type)}
                 aria-current={isActive ? 'true' : undefined}
               >
-                <span className="room-sidebar__room-name">
-                  {room.hasImaginedVersion && (
-                    <span className="room-sidebar__sparkle" aria-label="Has imagineered version">
-                      ✨{' '}
-                    </span>
-                  )}
-                  {room.displayName}
-                </span>
-                <span className="room-sidebar__badge" aria-label={`${room.photoCount} photos`}>
-                  {room.photoCount}
+                <span className="room-sidebar__room-name">{room.display_name}</span>
+                <span className="room-sidebar__badge" aria-label={`${room.photo_count} photos`}>
+                  {room.photo_count}
                 </span>
               </button>
             </li>

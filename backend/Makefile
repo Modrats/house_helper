@@ -38,18 +38,19 @@ test:
 
 # Start development server
 dev:
-	uv run uvicorn src.api.app:app --reload --port 8000
+	uv run --env-file .env uvicorn src.api.app:app --reload --port 8000
 
 # Run filter pipeline against input_data houses
+# Pass IMAGINEERING=1 to enable the imagineering stage (calls FLUX.2-pro — costs money)
 pipeline:
-	uv run python -m src.run
+	uv run --env-file .env python -m src.run $(if $(IMAGINEERING),--imagineering)
 
 # Run all evaluators (set COMPONENT=name to run one)
 eval:
 ifdef COMPONENT
-	uv run python -m src.evaluation.run_evals --component $(COMPONENT)
+	uv run --env-file .env python -m src.evaluation.run_evals --component $(COMPONENT)
 else
-	uv run python -m src.evaluation.run_evals
+	uv run --env-file .env python -m src.evaluation.run_evals
 endif
 
 # Clean artifacts

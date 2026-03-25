@@ -22,20 +22,20 @@ export const api = {
   },
 
   /** Get full house details */
-  getHouse(id: string): Promise<House> {
-    return get<House>(`/api/houses/${id}`);
+  getHouse(slug: string): Promise<House> {
+    return get<House>(`/api/houses/${slug}`);
   },
 
   /** Get room classifications for a house */
-  getRoomClassifications(houseId: string): Promise<RoomClassification[]> {
-    return get<RoomClassification[]>(`/api/houses/${houseId}/room-classifications`);
+  getRoomClassifications(slug: string): Promise<RoomClassification[]> {
+    return get<RoomClassification[]>(`/api/houses/${slug}/rooms`);
   },
 
   /** Get photos for a house, optionally filtered by room type */
-  getPhotos(houseId: string, roomType?: string): Promise<HousePhoto[]> {
+  getPhotos(slug: string, roomType?: string | null): Promise<HousePhoto[]> {
     const path = roomType
-      ? `/api/houses/${houseId}/photos?roomType=${encodeURIComponent(roomType)}`
-      : `/api/houses/${houseId}/photos`;
+      ? `/api/houses/${slug}/photos?room_type=${encodeURIComponent(roomType)}`
+      : `/api/houses/${slug}/photos`;
     return get<HousePhoto[]>(path);
   },
 };

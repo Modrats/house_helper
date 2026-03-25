@@ -1,25 +1,12 @@
 .PHONY: help install lint test format clean pre-commit install-hooks \
         install-backend install-frontend lint-backend lint-frontend \
         test-backend test-frontend format-backend format-frontend \
-        dev-backend dev-frontend \
-        docker-build docker-up docker-down backend-run frontend-run \
-        eval \
-        deploy-backend deploy-frontend
-
-ACR          ?= $(shell cd infra && terraform output -raw acr_login_server 2>/dev/null || echo "crhousehelperdev.azurecr.io")
-IMAGE_TAG    ?= $(shell git rev-parse --short HEAD)
-SWA_NAME     ?= $(shell cd infra && terraform output -raw swa_name 2>/dev/null || echo "stapp-househelper-dev")
-SWA_RG       ?= $(shell cd infra && terraform output -raw resource_group_name 2>/dev/null || echo "rg-househelper-dev")
-CA_NAME      ?= $(shell cd infra && terraform output -raw container_app_name 2>/dev/null || echo "ca-househelper-dev-backend")
-CA_RG        ?= $(SWA_RG)
+        dev dev-backend dev-frontend pipeline \
+        docker-build docker-up docker-down backend-run frontend-run
 
 # Default target
 help:
 	@echo "House Helper - Development Commands"
-	@echo ""
-	@echo "Deploy:"
-	@echo "  make deploy-backend   Build, tag (SHA + latest), push backend image to ACR"
-	@echo "  make deploy-frontend  Build frontend and deploy to Azure Static Web App"
 	@echo ""
 	@echo "Setup:"
 	@echo "  make install         Install all dependencies (backend + frontend)"
@@ -30,11 +17,13 @@ help:
 	@echo "  make test            Run all tests"
 	@echo "  make format          Auto-fix formatting issues"
 	@echo "  make pre-commit      Run pre-commit checks manually"
-	@echo "  make eval            Run all evaluators (COMPONENT=name for one)"
 	@echo ""
 	@echo "Development:"
+	@echo "  make dev             Start both dev servers (backend + frontend)"
 	@echo "  make dev-backend     Start backend dev server"
 	@echo "  make dev-frontend    Start frontend dev server"
+	@echo "  make pipeline        Run the filter pipeline against input_data/"
+	@echo "  make pipeline IMAGINEERING=1  Run pipeline with imagineering stage (costs money)"
 	@echo "  make clean           Remove all build artifacts"
 	@echo ""
 	@echo "Docker:"
@@ -107,19 +96,23 @@ format-frontend:
 pre-commit:
 	@./scripts/pre-commit-wrapper.sh --all-files
 
-eval:
-	@echo "📊 Running evaluators..."
-	cd backend && $(MAKE) eval COMPONENT=$(COMPONENT)
-
 #------------------------------------------------------------------------------
 # Development
 #------------------------------------------------------------------------------
+
+dev:
+	@echo "🚀 Starting dev servers (backend :8000 + frontend :5173)..."
+	@$(MAKE) -j2 dev-backend dev-frontend
 
 dev-backend:
 	cd backend && $(MAKE) dev
 
 dev-frontend:
 	cd frontend && $(MAKE) dev
+
+pipeline:
+	@echo "🏗️  Running filter pipeline..."
+	cd backend && $(MAKE) pipeline IMAGINEERING=$(IMAGINEERING)
 
 #------------------------------------------------------------------------------
 # Cleanup
@@ -133,41 +126,6 @@ clean:
 #------------------------------------------------------------------------------
 # Docker
 #------------------------------------------------------------------------------
-
-#------------------------------------------------------------------------------
-# Deploy
-#------------------------------------------------------------------------------
-
-deploy-backend:
-	@echo "🔐 Logging in to ACR..."
-	az acr login --name $(shell echo $(ACR) | cut -d. -f1)
-	@echo "🐳 Building backend image ($(ACR)/backend:$(IMAGE_TAG))..."
-	docker build -t $(ACR)/backend:$(IMAGE_TAG) -t $(ACR)/backend:latest ./backend
-	@echo "📤 Pushing $(ACR)/backend:$(IMAGE_TAG)..."
-	docker push $(ACR)/backend:$(IMAGE_TAG)
-	@echo "📤 Pushing $(ACR)/backend:latest..."
-	docker push $(ACR)/backend:latest
-	@echo "🚀 Updating Container App image..."
-	az containerapp update \
-		--name $(CA_NAME) \
-		--resource-group $(CA_RG) \
-		--image $(ACR)/backend:$(IMAGE_TAG)
-	@echo "✅ Backend deployed: $(ACR)/backend:$(IMAGE_TAG)"
-
-deploy-frontend:
-	@echo "⚛️  Building frontend..."
-	cd frontend && pnpm install --frozen-lockfile && pnpm build
-	@echo "🔑 Fetching SWA deployment token..."
-	$(eval SWA_TOKEN := $(shell az staticwebapp secrets list \
-		--name $(SWA_NAME) \
-		--resource-group $(SWA_RG) \
-		--query properties.apiKey \
-		--output tsv))
-	@echo "📤 Deploying to $(SWA_NAME)..."
-	npx --yes @azure/static-web-apps-cli deploy frontend/dist \
-		--deployment-token $(SWA_TOKEN) \
-		--env production
-	@echo "✅ Frontend deployed to $(SWA_NAME)"
 
 docker-build:
 	@echo "🐳 Building Docker images..."

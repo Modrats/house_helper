@@ -141,7 +141,7 @@ def get_room_classifications(
 @router.get("/api/houses/{slug}/photos", response_model=list[PhotoResponse], tags=["houses"])
 def get_photos(
     slug: str,
-    room_type: str | None = Query(default=None, alias="roomType"),
+    room_type: str | None = Query(default=None),
     repo: HouseRepository = Depends(get_repo),
 ) -> list[PhotoResponse]:
     """Get photos for a house with optional room type filter."""

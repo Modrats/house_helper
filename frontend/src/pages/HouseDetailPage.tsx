@@ -1,14 +1,63 @@
 import type { ReactNode } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useHouse } from '../hooks/useHouse';
+import type { FilterResult } from '../types/house';
 
-function formatPrice(price: number): string {
-  return new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(price);
+function formatSlug(slug: string): string {
+  return slug.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function formatAddress(house: { address: { street: string; houseNumber: string; city: string; postalCode: string } }): string {
-  const { street, houseNumber, city, postalCode } = house.address;
-  return `${street} ${houseNumber}, ${postalCode} ${city}`;
+function CriteriaPanel({ results }: { results: FilterResult }): ReactNode {
+  const allP1 = Object.entries(results.p1);
+  const allP2 = Object.entries(results.p2);
+  const allExcluded = Object.entries(results.excluded);
+
+  return (
+    <section className="house-detail__criteria">
+      <h3>
+        Filter result:{' '}
+        <span className={results.passed ? 'criteria-pass' : 'criteria-fail'}>
+          {results.passed ? '✓ Passed' : '✗ Failed'}
+        </span>
+      </h3>
+      {allP1.length > 0 && (
+        <div className="criteria-group">
+          <h4>Must-have</h4>
+          <ul className="criteria-list">
+            {allP1.map(([k, v]) => (
+              <li key={k} className={v ? 'criteria-item--pass' : 'criteria-item--fail'}>
+                {v ? '✓' : '✗'} {k}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {allP2.length > 0 && (
+        <div className="criteria-group">
+          <h4>Nice-to-have</h4>
+          <ul className="criteria-list">
+            {allP2.map(([k, v]) => (
+              <li key={k} className={v ? 'criteria-item--pass' : 'criteria-item--neutral'}>
+                {v ? '✓' : '·'} {k}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {allExcluded.length > 0 && (
+        <div className="criteria-group">
+          <h4>Dealbreakers</h4>
+          <ul className="criteria-list">
+            {allExcluded.map(([k, v]) => (
+              <li key={k} className={v ? 'criteria-item--fail' : 'criteria-item--pass'}>
+                {v ? '✗' : '✓'} {k}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </section>
+  );
 }
 
 export function HouseDetailPage(): ReactNode {
@@ -30,16 +79,13 @@ export function HouseDetailPage(): ReactNode {
       <nav className="breadcrumb" aria-label="Breadcrumb">
         <Link to="/">Houses</Link>
         <span aria-hidden="true"> / </span>
-        <span aria-current="page">{house?.address ? formatAddress(house) : `House ${houseId}`}</span>
+        <span aria-current="page">{house ? formatSlug(house.slug) : houseId}</span>
       </nav>
 
-      <h2>House Details</h2>
+      <h2>{house ? formatSlug(house.slug) : 'House Details'}</h2>
 
       <div className="house-detail__actions">
-        <Link
-          to={`/house/${houseId}/gallery`}
-          className="button button--primary"
-        >
+        <Link to={`/house/${houseId}/gallery`} className="button button--primary">
           View Photo Gallery
         </Link>
       </div>
@@ -58,78 +104,29 @@ export function HouseDetailPage(): ReactNode {
         </div>
       )}
 
-      {house?.id && (
+      {house && (
         <article className="house-detail">
-          {/* Screenshot */}
-          <div className="house-detail__screenshot">
-            <img
-              src={`/outputs/houses/${houseId}/screenshot.png`}
-              alt={`Screenshot of ${formatAddress(house)}`}
-              className="house-detail__screenshot-img"
-              loading="lazy"
-              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-            />
-          </div>
-
-          {/* Header */}
-          <header className="house-detail__header">
-            <p className="house-detail__address">{formatAddress(house)}</p>
-            <p className="house-detail__price">{formatPrice(house.listing.price)}</p>
-          </header>
-
-          {/* Listing summary */}
           <dl className="house-detail__stats">
             <div className="house-detail__stat">
-              <dt>Living area</dt>
-              <dd>{house.listing.livingArea} m²</dd>
+              <dt>Status</dt>
+              <dd>{house.status}</dd>
             </div>
             <div className="house-detail__stat">
-              <dt>Bedrooms</dt>
-              <dd>{house.listing.bedrooms}</dd>
+              <dt>Photos</dt>
+              <dd>{house.photo_count}</dd>
             </div>
-            {house.listing.plotSize && (
-              <div className="house-detail__stat">
-                <dt>Plot size</dt>
-                <dd>{house.listing.plotSize} m²</dd>
-              </div>
-            )}
-            {house.listing.yearBuilt && (
-              <div className="house-detail__stat">
-                <dt>Year built</dt>
-                <dd>{house.listing.yearBuilt}</dd>
-              </div>
-            )}
-            {house.listing.energyLabel && (
-              <div className="house-detail__stat">
-                <dt>Energy label</dt>
-                <dd className={`energy-label energy-label--${house.listing.energyLabel.toLowerCase()}`}>
-                  {house.listing.energyLabel}
-                </dd>
-              </div>
-            )}
+            <div className="house-detail__stat">
+              <dt>Rooms</dt>
+              <dd>{house.room_count}</dd>
+            </div>
           </dl>
 
-          {/* Description */}
-          {house.description && (
-            <section className="house-detail__description">
-              <h3>About this house</h3>
-              <p>{house.description}</p>
-            </section>
-          )}
+          <CriteriaPanel results={house.filter_results} />
 
-          {/* Actions */}
-          {house.sourceUrl && (
-            <div className="house-detail__source">
-              <a
-                href={house.sourceUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="button button--secondary"
-              >
-                View original listing ↗
-              </a>
-            </div>
-          )}
+          <section className="house-detail__description">
+            <h3>Listing</h3>
+            <pre className="house-detail__listing-text">{house.listing_text}</pre>
+          </section>
         </article>
       )}
     </div>

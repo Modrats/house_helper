@@ -5,12 +5,8 @@ storage:
   input_dir: "input_data/houses"
   output_dir: "outputs/houses"
 
-# Filter criteria configuration
-# Each key maps to a filter's expected criteria fields.
-#
-# p1 = must-have (ALL must match)
-# p2 = nice-to-have (ANY must match)
-
+# ─── Stage 1: Text filter ─────────────────────────────────────────────────────
+# Keyword matching on listing text (fast, no LLM).
 text_filter:
   p1_keywords:
     - "garden"
@@ -21,29 +17,23 @@ text_filter:
     - "highway"
     - "industrial"
 
-distance:
-  destinations:
-    - name: "Amsterdam Central"
-      address: "Amsterdam Centraal, Amsterdam"
-      modes: ["transit", "cycling"]
-    - name: "Office"
-      address: "Zuidas, Amsterdam"
-      modes: ["driving", "transit"]
-      
-llm_text_filter:
-  p1_criteria:
-    - "has a private garden or outdoor space"
-    - "has at least 3 bedrooms"
-  p2_criteria:
-    - "has a garage or covered parking"
-    - "has a modern kitchen with dishwasher"
-  excluded_criteria:
-    - "located near a highway or industrial area"
-    - "requires major renovation"
+# ─── Stage 2: Room classifier ─────────────────────────────────────────────────
+# (no extra config — runs on all photos, writes room_classifications.json)
 
+# ─── Stage 3a: Room type filter ───────────────────────────────────────────────
+# Checks room types detected by the classifier against criteria.
+room_filter:
+  p1_room_types: []
+  p2_room_types:
+    - "garden"
+    - "garage"
+  excluded_room_types: []
+
+# ─── Stage 3b: Photo criteria checker ─────────────────────────────────────────
+# Vision LLM checks required/preferred features per room type.
 photo_criteria:
   kitchen:
-    required: ["dishwasher", "oven", "sink"]
+    required: ["oven", "sink"]
     preferred: ["island", "modern_cabinets"]
   bathroom:
     required: ["shower_or_bath", "toilet"]
@@ -54,3 +44,17 @@ photo_criteria:
   living_room:
     required: []
     preferred: ["fireplace", "natural_light", "open_plan"]
+
+# ─── Stage 3c: Distance / commute filter ──────────────────────────────────────
+# Azure Maps routing — requires AZURE_MAPS_KEY env var.
+# Add destinations below; leave list empty to skip distance checking.
+distance:
+  destinations:
+    - name: "Amsterdam Central"
+      address: "Amsterdam Centraal, Amsterdam"
+      modes: ["transit", "cycling"]
+      max_commute_minutes: 45
+    # - name: "Office"
+    #   address: "Zuidas, Amsterdam"
+    #   modes: ["driving", "transit"]
+    #   max_commute_minutes: 30

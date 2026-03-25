@@ -103,17 +103,37 @@ class AzureOpenAIService(ILLMService):
     # Private helpers
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def _strict_schema(schema: dict) -> dict:
+        """Recursively add ``additionalProperties: false`` to every object node.
+
+        Azure OpenAI structured outputs (strict mode) require this on every
+        object in the schema hierarchy, including nested ``$defs``.
+        """
+        schema = dict(schema)
+        if schema.get("type") == "object":
+            schema["additionalProperties"] = False
+        for key in ("properties", "$defs", "items"):
+            if key in schema:
+                val = schema[key]
+                if isinstance(val, dict):
+                    schema[key] = {
+                        k: AzureOpenAIService._strict_schema(v) if isinstance(v, dict) else v
+                        for k, v in val.items()
+                    }
+        return schema
+
     def _call_api(self, messages: list[dict], response_model: type[LLMResponse]) -> LLMResponse:
         """Execute the actual OpenAI API call.
 
         This is the single integration point with the LLM — isolate it
         so tests can record and replay responses.
         """
-        schema = response_model.model_json_schema()
+        schema = self._strict_schema(response_model.model_json_schema())
         response = self._client.chat.completions.create(
             model=self._deployment,
             messages=messages,  # type: ignore[arg-type]
-            max_tokens=150,
+            max_tokens=1024,
             temperature=0.1,
             response_format={
                 "type": "json_schema",

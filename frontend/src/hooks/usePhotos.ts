@@ -8,7 +8,7 @@ interface UsePhotosResult {
   error: Error | null;
 }
 
-export function usePhotos(houseId: string | undefined): UsePhotosResult {
+export function usePhotos(houseId: string | undefined, roomType?: string | null): UsePhotosResult {
   const [data, setData] = useState<HousePhoto[] | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
@@ -25,7 +25,7 @@ export function usePhotos(houseId: string | undefined): UsePhotosResult {
     setIsLoading(true);
     setError(null);
 
-    api.getPhotos(houseId)
+    api.getPhotos(houseId, roomType)
       .then((result) => {
         if (!cancelled) {
           setData(result);
@@ -40,7 +40,7 @@ export function usePhotos(houseId: string | undefined): UsePhotosResult {
       });
 
     return () => { cancelled = true; };
-  }, [houseId]);
+  }, [houseId, roomType]);
 
   return { data, isLoading, error };
 }
