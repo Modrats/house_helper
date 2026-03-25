@@ -8,6 +8,10 @@ from src.interfaces.filter import IFilter
 from src.models.house import FilterResult, House, HouseMetadata
 from src.runners.run_pipeline import FilterPipeline
 
+# ---------------------------------------------------------------------------
+# Helpers / NamedTuples / test case lists
+# ---------------------------------------------------------------------------
+
 
 class PassAllFilter(IFilter):
     """Filter that passes all houses (for testing)."""
@@ -50,16 +54,22 @@ class PriceFilter(IFilter):
         return results
 
 
+class RaisingFilter(IFilter):
+    """Filter that raises an exception (for testing error propagation)."""
+
+    @property
+    def name(self) -> str:
+        return "raising_filter"
+
+    def filter(self, houses: list[House], criteria: dict[str, Any]) -> dict[str, FilterResult]:
+        raise RuntimeError("Filter failure")
+
+
 SAMPLE_HOUSES = [
     House(slug="house-1", metadata=HouseMetadata(price=300000)),
     House(slug="house-2", metadata=HouseMetadata(price=450000)),
     House(slug="house-3", metadata=HouseMetadata(price=600000)),
 ]
-
-
-# ---------------------------------------------------------------------------
-# Pipeline run behaviour
-# ---------------------------------------------------------------------------
 
 
 class PipelineRunCase(NamedTuple):
@@ -104,28 +114,6 @@ PIPELINE_RUN_CASES = [
 ]
 
 
-@pytest.mark.parametrize(
-    "description, filters, houses, criteria, expected_count", PIPELINE_RUN_CASES
-)
-def test_pipeline_run(
-    description: str,
-    filters: list,
-    houses: list,
-    criteria: dict,
-    expected_count: int,
-) -> None:
-    pipeline = FilterPipeline()
-    for f in filters:
-        pipeline.add_filter(f)
-    result = pipeline.run(houses, criteria)
-    assert len(result) == expected_count
-
-
-# ---------------------------------------------------------------------------
-# Pipeline method chaining
-# ---------------------------------------------------------------------------
-
-
 class PipelineChainCase(NamedTuple):
     """Test case for FilterPipeline method chaining."""
 
@@ -141,7 +129,103 @@ PIPELINE_CHAIN_CASES = [
 ]
 
 
+# ===========================================================================
+# Happy path
+# ===========================================================================
+
+# --- Pipeline run ---
+
+
+@pytest.mark.parametrize(
+    "description, filters, houses, criteria, expected_count", PIPELINE_RUN_CASES
+)
+def test_pipeline_run(
+    description: str,
+    filters: list,
+    houses: list,
+    criteria: dict,
+    expected_count: int,
+) -> None:
+    """FilterPipeline.run applies filters and returns passing houses."""
+    # Arrange
+    pipeline = FilterPipeline()
+    for f in filters:
+        pipeline.add_filter(f)
+
+    # Act
+    result = pipeline.run(houses, criteria)
+
+    # Assert
+    assert len(result) == expected_count
+
+
+# --- Method chaining ---
+
+
 @pytest.mark.parametrize("description, expected_filter_count", PIPELINE_CHAIN_CASES)
 def test_pipeline_method_chaining(description: str, expected_filter_count: int) -> None:
+    """FilterPipeline.add_filter supports method chaining."""
+    # Arrange — (no setup needed)
+
+    # Act
     pipeline = FilterPipeline().add_filter(PassAllFilter()).add_filter(PriceFilter())
+
+    # Assert
     assert len(pipeline.filters) == expected_filter_count
+
+
+# ===========================================================================
+# Edge cases
+# ===========================================================================
+
+# --- Pipeline with empty house list ---
+
+
+def test_pipeline_run_empty_house_list() -> None:
+    """Pipeline run with empty house list returns empty list."""
+    # Arrange
+    pipeline = FilterPipeline()
+    pipeline.add_filter(PassAllFilter())
+
+    # Act
+    result = pipeline.run([], {})
+
+    # Assert
+    assert result == []
+
+
+# --- Pipeline with single house that passes all filters ---
+
+
+def test_pipeline_single_house_passes_all() -> None:
+    """Pipeline with single house that passes all filters returns that house."""
+    # Arrange
+    pipeline = FilterPipeline()
+    pipeline.add_filter(PassAllFilter())
+    pipeline.add_filter(PriceFilter())
+    houses = [House(slug="cheap-house", metadata=HouseMetadata(price=100000))]
+
+    # Act
+    result = pipeline.run(houses, {"max_price": 500000})
+
+    # Assert
+    assert len(result) == 1
+    assert result[0].slug == "cheap-house"
+
+
+# ===========================================================================
+# Error / failure cases
+# ===========================================================================
+
+# --- Filter that raises ---
+
+
+def test_pipeline_filter_raises_propagates() -> None:
+    """A filter that raises an exception propagates it to the caller."""
+    # Arrange
+    pipeline = FilterPipeline()
+    pipeline.add_filter(RaisingFilter())
+
+    # Act & Assert
+    with pytest.raises(RuntimeError, match="Filter failure"):
+        pipeline.run(SAMPLE_HOUSES, {})

@@ -12,6 +12,10 @@ from src.interfaces.filter import IFilter
 from src.models.house import FilterResult, House
 from src.runners.run_pipeline import FilterPipeline
 
+# ---------------------------------------------------------------------------
+# Helpers / NamedTuples / test case lists
+# ---------------------------------------------------------------------------
+
 
 class SimpleFilter(IFilter):
     """A simple filter for testing."""
@@ -69,9 +73,15 @@ class FilterB(IFilter):
         return {h.slug: FilterResult() for h in houses}
 
 
-# ---------------------------------------------------------------------------
-# add_filter returns self
-# ---------------------------------------------------------------------------
+class RaisingFilter(IFilter):
+    """Filter that raises an error for testing error propagation."""
+
+    @property
+    def name(self) -> str:
+        return "raising_filter"
+
+    def filter(self, houses: list[House], criteria: dict[str, Any]) -> dict[str, FilterResult]:
+        raise ValueError("Validation failure in filter")
 
 
 class AddFilterChainCase(NamedTuple):
@@ -87,19 +97,6 @@ ADD_FILTER_CHAIN_CASES = [
         expected_filter_count=1,
     ),
 ]
-
-
-@pytest.mark.parametrize("description, expected_filter_count", ADD_FILTER_CHAIN_CASES)
-def test_add_filter_returns_self_for_chaining(description: str, expected_filter_count: int) -> None:
-    pipeline = FilterPipeline()
-    result = pipeline.add_filter(SimpleFilter())
-    assert result is pipeline
-    assert len(pipeline.filters) == expected_filter_count
-
-
-# ---------------------------------------------------------------------------
-# Filter ordering
-# ---------------------------------------------------------------------------
 
 
 class FilterOrderCase(NamedTuple):
@@ -133,30 +130,6 @@ FILTER_ORDER_CASES = [
 ]
 
 
-@pytest.mark.parametrize(
-    "description, filter_1, filter_2, expected_name_0, expected_name_1, expected_count",
-    FILTER_ORDER_CASES,
-)
-def test_filters_stored_in_order(
-    description: str,
-    filter_1: IFilter,
-    filter_2: IFilter,
-    expected_name_0: str,
-    expected_name_1: str,
-    expected_count: int,
-) -> None:
-    pipeline = FilterPipeline()
-    pipeline.add_filter(filter_1).add_filter(filter_2)
-    assert len(pipeline.filters) == expected_count
-    assert pipeline.filters[0].name == expected_name_0
-    assert pipeline.filters[1].name == expected_name_1
-
-
-# ---------------------------------------------------------------------------
-# Empty pipeline
-# ---------------------------------------------------------------------------
-
-
 class EmptyPipelineCase(NamedTuple):
     """Test case for a freshly created pipeline."""
 
@@ -172,7 +145,88 @@ EMPTY_PIPELINE_CASES = [
 ]
 
 
+# ===========================================================================
+# Happy path
+# ===========================================================================
+
+# --- add_filter returns self ---
+
+
+@pytest.mark.parametrize("description, expected_filter_count", ADD_FILTER_CHAIN_CASES)
+def test_add_filter_returns_self_for_chaining(description: str, expected_filter_count: int) -> None:
+    """add_filter returns the pipeline instance for method chaining."""
+    # Arrange
+    pipeline = FilterPipeline()
+
+    # Act
+    result = pipeline.add_filter(SimpleFilter())
+
+    # Assert
+    assert result is pipeline
+    assert len(pipeline.filters) == expected_filter_count
+
+
+# --- Filter ordering ---
+
+
+@pytest.mark.parametrize(
+    "description, filter_1, filter_2, expected_name_0, expected_name_1, expected_count",
+    FILTER_ORDER_CASES,
+)
+def test_filters_stored_in_order(
+    description: str,
+    filter_1: IFilter,
+    filter_2: IFilter,
+    expected_name_0: str,
+    expected_name_1: str,
+    expected_count: int,
+) -> None:
+    """Filters are stored in the order they are added."""
+    # Arrange
+    pipeline = FilterPipeline()
+
+    # Act
+    pipeline.add_filter(filter_1).add_filter(filter_2)
+
+    # Assert
+    assert len(pipeline.filters) == expected_count
+    assert pipeline.filters[0].name == expected_name_0
+    assert pipeline.filters[1].name == expected_name_1
+
+
+# ===========================================================================
+# Edge cases
+# ===========================================================================
+
+# --- Empty pipeline ---
+
+
 @pytest.mark.parametrize("description, expected_filter_count", EMPTY_PIPELINE_CASES)
 def test_pipeline_starts_empty(description: str, expected_filter_count: int) -> None:
+    """New FilterPipeline starts with zero filters."""
+    # Arrange — (no setup needed)
+
+    # Act
     pipeline = FilterPipeline()
+
+    # Assert
     assert len(pipeline.filters) == expected_filter_count
+
+
+# ===========================================================================
+# Error / failure cases
+# ===========================================================================
+
+# --- Filter that raises during run ---
+
+
+def test_raising_filter_propagates_error() -> None:
+    """A filter that raises during pipeline run propagates the error."""
+    # Arrange
+    pipeline = FilterPipeline()
+    pipeline.add_filter(RaisingFilter())
+    houses = [House(slug="test-house")]
+
+    # Act & Assert
+    with pytest.raises(ValueError, match="Validation failure in filter"):
+        pipeline.run(houses, {})

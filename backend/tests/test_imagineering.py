@@ -14,7 +14,7 @@ from src.models.imagineering import ImagineeringPhoto, ImagineeringResult
 from src.services.imagineering_service import FluxImagineeringService
 
 # ---------------------------------------------------------------------------
-# Helpers
+# Helpers / NamedTuples / test case lists
 # ---------------------------------------------------------------------------
 
 _FAKE_API_KEY = "test-key"
@@ -79,11 +79,6 @@ def _make_service(input_dir: Path, output_dir: Path) -> FluxImagineeringService:
     )
 
 
-# ---------------------------------------------------------------------------
-# Model serialization
-# ---------------------------------------------------------------------------
-
-
 class ModelSerializationCase(NamedTuple):
     """Test case for model round-trip serialization."""
 
@@ -120,23 +115,6 @@ MODEL_SERIALIZATION_CASES = [
 ]
 
 
-@pytest.mark.parametrize("description, photo, expected_room_type", MODEL_SERIALIZATION_CASES)
-def test_model_serialization(
-    description: str,
-    photo: ImagineeringPhoto,
-    expected_room_type: str,
-) -> None:
-    data = photo.model_dump()
-    restored = ImagineeringPhoto(**data)
-    assert restored.room_type == expected_room_type
-    assert restored == photo
-
-
-# ---------------------------------------------------------------------------
-# ImagineeringResult container
-# ---------------------------------------------------------------------------
-
-
 class ResultContainerCase(NamedTuple):
     """Test case for ImagineeringResult."""
 
@@ -157,29 +135,6 @@ RESULT_CONTAINER_CASES = [
         photo_count=3,
     ),
 ]
-
-
-@pytest.mark.parametrize("description, slug, photo_count", RESULT_CONTAINER_CASES)
-def test_result_container(description: str, slug: str, photo_count: int) -> None:
-    photos = [
-        ImagineeringPhoto(
-            filename=f"photo_{i}.jpg",
-            room_type="bedroom",
-            prompt_used="prompt",
-            guidance_value=15.0,
-            output_path=f"houses/{slug}/imagineered/bedroom/photo_{i}.png",
-            timestamp="2026-03-24T00:00:00+00:00",
-        )
-        for i in range(photo_count)
-    ]
-    result = ImagineeringResult(slug=slug, photos=photos)
-    assert result.slug == slug
-    assert len(result.photos) == photo_count
-
-
-# ---------------------------------------------------------------------------
-# Service — successful generation
-# ---------------------------------------------------------------------------
 
 
 class GenerationCase(NamedTuple):
@@ -205,39 +160,6 @@ GENERATION_CASES = [
         expected_output_count=2,
     ),
 ]
-
-
-@pytest.mark.parametrize(
-    "description, filenames, room_type, expected_output_count", GENERATION_CASES
-)
-def test_generation_success(
-    tmp_path: Path,
-    description: str,
-    filenames: list[str],
-    room_type: str,
-    expected_output_count: int,
-) -> None:
-    input_dir, output_dir = _setup_house(tmp_path, "test-house", filenames, room_type)
-    service = _make_service(input_dir, output_dir)
-
-    mock_resp = MagicMock()
-    mock_resp.ok = True
-    mock_resp.json.return_value = _make_flux_response()
-
-    with patch("src.services.imagineering_service.requests.post", return_value=mock_resp):
-        result = service.imagineer_house("test-house")
-
-    assert len(result.photos) == expected_output_count
-    for photo in result.photos:
-        assert photo.room_type == room_type
-        assert photo.guidance_value == _FAKE_GUIDANCE
-        output_file = output_dir / photo.output_path
-        assert output_file.exists()
-
-
-# ---------------------------------------------------------------------------
-# Service — idempotent behavior
-# ---------------------------------------------------------------------------
 
 
 class IdempotentCase(NamedTuple):
@@ -268,57 +190,6 @@ IDEMPOTENT_CASES = [
 ]
 
 
-@pytest.mark.parametrize(
-    "description, already_done, all_files, expected_new_calls, expected_total",
-    IDEMPOTENT_CASES,
-)
-def test_idempotent_behavior(
-    tmp_path: Path,
-    description: str,
-    already_done: list[str],
-    all_files: list[str],
-    expected_new_calls: int,
-    expected_total: int,
-) -> None:
-    input_dir, output_dir = _setup_house(tmp_path, "test-house", all_files)
-    service = _make_service(input_dir, output_dir)
-
-    # Write pre-existing results
-    existing_photos = [
-        {
-            "filename": name,
-            "room_type": "bedroom",
-            "prompt_used": "old prompt",
-            "guidance_value": 15.0,
-            "output_path": f"houses/test-house/imagineered/bedroom/{Path(name).stem}.png",
-            "timestamp": "2026-03-24T00:00:00+00:00",
-        }
-        for name in already_done
-    ]
-    results_file = output_dir / "houses" / "test-house" / "imagineering_results.json"
-    results_file.write_text(
-        json.dumps({"slug": "test-house", "photos": existing_photos}, indent=2) + "\n",
-        encoding="utf-8",
-    )
-
-    mock_resp = MagicMock()
-    mock_resp.ok = True
-    mock_resp.json.return_value = _make_flux_response()
-
-    with patch(
-        "src.services.imagineering_service.requests.post", return_value=mock_resp
-    ) as mock_post:
-        result = service.imagineer_house("test-house")
-
-    assert mock_post.call_count == expected_new_calls
-    assert len(result.photos) == expected_total
-
-
-# ---------------------------------------------------------------------------
-# Service — API error handling
-# ---------------------------------------------------------------------------
-
-
 class APIErrorCase(NamedTuple):
     """Test case for API error handling."""
 
@@ -346,35 +217,6 @@ API_ERROR_CASES = [
 ]
 
 
-@pytest.mark.parametrize("description, status_code, is_retryable", API_ERROR_CASES)
-def test_api_error_handling(
-    tmp_path: Path,
-    description: str,
-    status_code: int,
-    is_retryable: bool,
-) -> None:
-    input_dir, output_dir = _setup_house(tmp_path, "test-house", ["photo.jpg"])
-    service = _make_service(input_dir, output_dir)
-
-    mock_resp = MagicMock()
-    mock_resp.ok = False
-    mock_resp.status_code = status_code
-    mock_resp.text = f"Error {status_code}"
-    mock_resp.raise_for_status.side_effect = Exception(f"HTTP {status_code}")
-
-    with (
-        patch("src.services.imagineering_service.requests.post", return_value=mock_resp),
-        patch("src.services.imagineering_service.time.sleep"),
-        pytest.raises((RuntimeError, Exception)),
-    ):
-        service.imagineer_house("test-house")
-
-
-# ---------------------------------------------------------------------------
-# Service — missing classifications
-# ---------------------------------------------------------------------------
-
-
 class MissingDataCase(NamedTuple):
     """Test case for missing input data."""
 
@@ -390,68 +232,6 @@ MISSING_DATA_CASES = [
         expected_photo_count=0,
     ),
 ]
-
-
-@pytest.mark.parametrize(
-    "description, has_classifications, expected_photo_count", MISSING_DATA_CASES
-)
-def test_missing_data(
-    tmp_path: Path,
-    description: str,
-    has_classifications: bool,
-    expected_photo_count: int,
-) -> None:
-    input_dir = tmp_path / "input"
-    output_dir = tmp_path / "output"
-    input_dir.mkdir()
-    output_dir.mkdir()
-
-    if has_classifications:
-        cls_dir = output_dir / "houses" / "test-house"
-        cls_dir.mkdir(parents=True)
-        (cls_dir / "room_classifications.json").write_text(
-            json.dumps({"slug": "test-house", "classifications": []}) + "\n"
-        )
-
-    service = _make_service(input_dir, output_dir)
-    result = service.imagineer_house("test-house")
-    assert len(result.photos) == expected_photo_count
-
-
-# ---------------------------------------------------------------------------
-# Service — missing source photo
-# ---------------------------------------------------------------------------
-
-
-def test_missing_source_photo_skipped(tmp_path: Path) -> None:
-    """Photos referenced in classifications but missing on disk are skipped."""
-    input_dir = tmp_path / "input"
-    output_dir = tmp_path / "output"
-
-    # Create classifications referencing a photo that doesn't exist on disk
-    cls_dir = output_dir / "houses" / "test-house"
-    cls_dir.mkdir(parents=True)
-    (cls_dir / "room_classifications.json").write_text(
-        json.dumps(
-            {
-                "slug": "test-house",
-                "classifications": [
-                    {"filename": "ghost.jpg", "room_type": "bedroom", "confidence": 0.9}
-                ],
-            }
-        )
-        + "\n"
-    )
-
-    # Don't create the photos directory at all
-    service = _make_service(input_dir, output_dir)
-    result = service.imagineer_house("test-house")
-    assert len(result.photos) == 0
-
-
-# ---------------------------------------------------------------------------
-# Factory — create_imagineering_service
-# ---------------------------------------------------------------------------
 
 
 class FactoryEnvCase(NamedTuple):
@@ -481,12 +261,256 @@ FACTORY_ENV_CASES = [
 ]
 
 
+# ===========================================================================
+# Happy path
+# ===========================================================================
+
+# --- Model serialization ---
+
+
+@pytest.mark.parametrize("description, photo, expected_room_type", MODEL_SERIALIZATION_CASES)
+def test_model_serialization(
+    description: str,
+    photo: ImagineeringPhoto,
+    expected_room_type: str,
+) -> None:
+    # Act
+    data = photo.model_dump()
+    restored = ImagineeringPhoto(**data)
+
+    # Assert
+    assert restored.room_type == expected_room_type
+    assert restored == photo
+
+
+# --- ImagineeringResult container ---
+
+
+@pytest.mark.parametrize("description, slug, photo_count", RESULT_CONTAINER_CASES)
+def test_result_container(description: str, slug: str, photo_count: int) -> None:
+    # Arrange
+    photos = [
+        ImagineeringPhoto(
+            filename=f"photo_{i}.jpg",
+            room_type="bedroom",
+            prompt_used="prompt",
+            guidance_value=15.0,
+            output_path=f"houses/{slug}/imagineered/bedroom/photo_{i}.png",
+            timestamp="2026-03-24T00:00:00+00:00",
+        )
+        for i in range(photo_count)
+    ]
+
+    # Act
+    result = ImagineeringResult(slug=slug, photos=photos)
+
+    # Assert
+    assert result.slug == slug
+    assert len(result.photos) == photo_count
+
+
+# --- Successful generation ---
+
+
+@pytest.mark.parametrize(
+    "description, filenames, room_type, expected_output_count", GENERATION_CASES
+)
+def test_generation_success(
+    tmp_path: Path,
+    description: str,
+    filenames: list[str],
+    room_type: str,
+    expected_output_count: int,
+) -> None:
+    # Arrange
+    input_dir, output_dir = _setup_house(tmp_path, "test-house", filenames, room_type)
+    service = _make_service(input_dir, output_dir)
+
+    mock_resp = MagicMock()
+    mock_resp.ok = True
+    mock_resp.json.return_value = _make_flux_response()
+
+    # Act
+    with patch("src.services.imagineering_service.requests.post", return_value=mock_resp):
+        result = service.imagineer_house("test-house")
+
+    # Assert
+    assert len(result.photos) == expected_output_count
+    for photo in result.photos:
+        assert photo.room_type == room_type
+        assert photo.guidance_value == _FAKE_GUIDANCE
+        output_file = output_dir / photo.output_path
+        assert output_file.exists()
+
+
+# ===========================================================================
+# Edge cases
+# ===========================================================================
+
+# --- Idempotent behavior ---
+
+
+@pytest.mark.parametrize(
+    "description, already_done, all_files, expected_new_calls, expected_total",
+    IDEMPOTENT_CASES,
+)
+def test_idempotent_behavior(
+    tmp_path: Path,
+    description: str,
+    already_done: list[str],
+    all_files: list[str],
+    expected_new_calls: int,
+    expected_total: int,
+) -> None:
+    # Arrange
+    input_dir, output_dir = _setup_house(tmp_path, "test-house", all_files)
+    service = _make_service(input_dir, output_dir)
+
+    # Write pre-existing results
+    existing_photos = [
+        {
+            "filename": name,
+            "room_type": "bedroom",
+            "prompt_used": "old prompt",
+            "guidance_value": 15.0,
+            "output_path": f"houses/test-house/imagineered/bedroom/{Path(name).stem}.png",
+            "timestamp": "2026-03-24T00:00:00+00:00",
+        }
+        for name in already_done
+    ]
+    results_file = output_dir / "houses" / "test-house" / "imagineering_results.json"
+    results_file.write_text(
+        json.dumps({"slug": "test-house", "photos": existing_photos}, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    mock_resp = MagicMock()
+    mock_resp.ok = True
+    mock_resp.json.return_value = _make_flux_response()
+
+    # Act
+    with patch(
+        "src.services.imagineering_service.requests.post", return_value=mock_resp
+    ) as mock_post:
+        result = service.imagineer_house("test-house")
+
+    # Assert
+    assert mock_post.call_count == expected_new_calls
+    assert len(result.photos) == expected_total
+
+
+# --- Missing classifications ---
+
+
+@pytest.mark.parametrize(
+    "description, has_classifications, expected_photo_count", MISSING_DATA_CASES
+)
+def test_missing_data(
+    tmp_path: Path,
+    description: str,
+    has_classifications: bool,
+    expected_photo_count: int,
+) -> None:
+    # Arrange
+    input_dir = tmp_path / "input"
+    output_dir = tmp_path / "output"
+    input_dir.mkdir()
+    output_dir.mkdir()
+
+    if has_classifications:
+        cls_dir = output_dir / "houses" / "test-house"
+        cls_dir.mkdir(parents=True)
+        (cls_dir / "room_classifications.json").write_text(
+            json.dumps({"slug": "test-house", "classifications": []}) + "\n"
+        )
+
+    service = _make_service(input_dir, output_dir)
+
+    # Act
+    result = service.imagineer_house("test-house")
+
+    # Assert
+    assert len(result.photos) == expected_photo_count
+
+
+# --- Missing source photo ---
+
+
+def test_missing_source_photo_skipped(tmp_path: Path) -> None:
+    """Photos referenced in classifications but missing on disk are skipped."""
+    # Arrange
+    input_dir = tmp_path / "input"
+    output_dir = tmp_path / "output"
+
+    # Create classifications referencing a photo that doesn't exist on disk
+    cls_dir = output_dir / "houses" / "test-house"
+    cls_dir.mkdir(parents=True)
+    (cls_dir / "room_classifications.json").write_text(
+        json.dumps(
+            {
+                "slug": "test-house",
+                "classifications": [
+                    {"filename": "ghost.jpg", "room_type": "bedroom", "confidence": 0.9}
+                ],
+            }
+        )
+        + "\n"
+    )
+
+    # Don't create the photos directory at all
+    service = _make_service(input_dir, output_dir)
+
+    # Act
+    result = service.imagineer_house("test-house")
+
+    # Assert
+    assert len(result.photos) == 0
+
+
+# ===========================================================================
+# Error / failure cases
+# ===========================================================================
+
+# --- API error handling ---
+
+
+@pytest.mark.parametrize("description, status_code, is_retryable", API_ERROR_CASES)
+def test_api_error_handling(
+    tmp_path: Path,
+    description: str,
+    status_code: int,
+    is_retryable: bool,
+) -> None:
+    # Arrange
+    input_dir, output_dir = _setup_house(tmp_path, "test-house", ["photo.jpg"])
+    service = _make_service(input_dir, output_dir)
+
+    mock_resp = MagicMock()
+    mock_resp.ok = False
+    mock_resp.status_code = status_code
+    mock_resp.text = f"Error {status_code}"
+    mock_resp.raise_for_status.side_effect = Exception(f"HTTP {status_code}")
+
+    # Act & Assert
+    with (
+        patch("src.services.imagineering_service.requests.post", return_value=mock_resp),
+        patch("src.services.imagineering_service.time.sleep"),
+        pytest.raises((RuntimeError, Exception)),
+    ):
+        service.imagineer_house("test-house")
+
+
+# --- Factory env var validation ---
+
+
 @pytest.mark.parametrize("description, env_vars, should_raise", FACTORY_ENV_CASES)
 def test_factory_env_validation(
     description: str, env_vars: dict[str, str], should_raise: bool
 ) -> None:
+    # Arrange
     from src.core import create_imagineering_service
 
+    # Act & Assert
     with patch.dict("os.environ", env_vars, clear=True):
         if should_raise:
             with pytest.raises(RuntimeError, match="Missing required environment"):
