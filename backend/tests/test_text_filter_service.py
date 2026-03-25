@@ -20,7 +20,7 @@ from src.services.text_filter_service import (
 )
 
 # ---------------------------------------------------------------------------
-# Helpers
+# Helpers / NamedTuples / test case lists
 # ---------------------------------------------------------------------------
 
 _SAMPLE_CRITERIA: dict[str, Any] = {
@@ -101,11 +101,6 @@ def _make_service(
     return service, mock_llm
 
 
-# ---------------------------------------------------------------------------
-# Criteria hash
-# ---------------------------------------------------------------------------
-
-
 class CriteriaHashCase(NamedTuple):
     """Test case for criteria hash computation."""
 
@@ -137,29 +132,6 @@ CRITERIA_HASH_CASES = [
 ]
 
 
-@pytest.mark.parametrize(
-    "description, criteria_a, criteria_b, should_match",
-    CRITERIA_HASH_CASES,
-)
-def test_criteria_hash(
-    description: str,
-    criteria_a: dict[str, Any],
-    criteria_b: dict[str, Any],
-    should_match: bool,
-) -> None:
-    hash_a = _compute_criteria_hash(criteria_a)
-    hash_b = _compute_criteria_hash(criteria_b)
-    if should_match:
-        assert hash_a == hash_b
-    else:
-        assert hash_a != hash_b
-
-
-# ---------------------------------------------------------------------------
-# Criteria list building
-# ---------------------------------------------------------------------------
-
-
 class CriteriaListCase(NamedTuple):
     """Test case for building the flat criteria list."""
 
@@ -189,21 +161,6 @@ CRITERIA_LIST_CASES = [
         expected=[],
     ),
 ]
-
-
-@pytest.mark.parametrize("description, criteria, expected", CRITERIA_LIST_CASES)
-def test_build_criteria_list(
-    description: str,
-    criteria: dict[str, Any],
-    expected: list[tuple[str, str]],
-) -> None:
-    result = _build_criteria_list(criteria)
-    assert result == expected
-
-
-# ---------------------------------------------------------------------------
-# FilterResult mapping
-# ---------------------------------------------------------------------------
 
 
 class FilterResultMappingCase(NamedTuple):
@@ -276,29 +233,6 @@ FILTER_RESULT_CASES = [
         expected_excluded={},
     ),
 ]
-
-
-@pytest.mark.parametrize(
-    "description, evaluations, expected_p1, expected_p2, expected_excluded",
-    FILTER_RESULT_CASES,
-)
-def test_filter_result_mapping(
-    description: str,
-    evaluations: list[CriterionResult],
-    expected_p1: dict[str, bool],
-    expected_p2: dict[str, bool],
-    expected_excluded: dict[str, bool],
-) -> None:
-    analysis = TextAnalysis(slug="test", criteria_hash="abc", evaluations=evaluations)
-    result = analysis.to_filter_result()
-    assert result.p1 == expected_p1
-    assert result.p2 == expected_p2
-    assert result.excluded == expected_excluded
-
-
-# ---------------------------------------------------------------------------
-# Full filter flow
-# ---------------------------------------------------------------------------
 
 
 class FilterFlowCase(NamedTuple):
@@ -379,120 +313,6 @@ FILTER_FLOW_CASES = [
 ]
 
 
-@pytest.mark.parametrize(
-    "description, listing_text, llm_evals, expected_p1_values, expected_excluded_values",
-    FILTER_FLOW_CASES,
-)
-def test_filter_flow(
-    description: str,
-    listing_text: str,
-    llm_evals: list[dict[str, Any]],
-    expected_p1_values: list[bool],
-    expected_excluded_values: list[bool],
-    tmp_path: Path,
-) -> None:
-    response = _make_llm_response(llm_evals)
-    service, mock_llm = _make_service(tmp_path, response)
-    house = _make_house(listing_text=listing_text)
-
-    results = service.filter([house], _SAMPLE_CRITERIA)
-
-    assert house.slug in results
-    fr = results[house.slug]
-    assert list(fr.p1.values()) == expected_p1_values
-    assert list(fr.excluded.values()) == expected_excluded_values
-    mock_llm.complete_structured.assert_called_once()
-
-
-# ---------------------------------------------------------------------------
-# Caching behaviour
-# ---------------------------------------------------------------------------
-
-
-def test_cache_hit_skips_llm_call(tmp_path: Path) -> None:
-    """When cached analysis exists with matching criteria hash, skip the LLM."""
-    service, mock_llm = _make_service(tmp_path)
-    house = _make_house()
-
-    # First call — hits the LLM
-    service.filter([house], _SAMPLE_CRITERIA)
-    assert mock_llm.complete_structured.call_count == 1
-
-    # Second call — should use cache
-    service.filter([house], _SAMPLE_CRITERIA)
-    assert mock_llm.complete_structured.call_count == 1
-
-
-def test_criteria_drift_triggers_reanalysis(tmp_path: Path) -> None:
-    """When criteria change, the cached result should be ignored."""
-    service, mock_llm = _make_service(tmp_path)
-    house = _make_house()
-
-    # First call with original criteria
-    service.filter([house], _SAMPLE_CRITERIA)
-    assert mock_llm.complete_structured.call_count == 1
-
-    # Second call with different criteria
-    changed_criteria = {
-        "p1_criteria": ["has a swimming pool"],
-        "p2_criteria": [],
-        "excluded_criteria": [],
-    }
-    # Update the LLM mock for the new criteria
-    mock_llm.complete_structured.return_value = _TextAnalysisResult(
-        evaluations=[
-            _CriterionEval(
-                criterion_name="has a swimming pool",
-                met=False,
-                confidence=0.70,
-                reasoning="No pool mentioned.",
-            ),
-        ],
-    )
-    service.filter([house], changed_criteria)
-    assert mock_llm.complete_structured.call_count == 2
-
-
-def test_corrupt_cache_triggers_reanalysis(tmp_path: Path) -> None:
-    """When the cache file is corrupt JSON, the service should re-analyze."""
-    service, mock_llm = _make_service(tmp_path)
-    house = _make_house()
-
-    # Write corrupt cache
-    cache_file = tmp_path / "output" / house.slug / "text_analysis.json"
-    cache_file.parent.mkdir(parents=True, exist_ok=True)
-    cache_file.write_text("{ not valid json", encoding="utf-8")
-
-    service.filter([house], _SAMPLE_CRITERIA)
-    assert mock_llm.complete_structured.call_count == 1
-
-
-# ---------------------------------------------------------------------------
-# Cache file persistence
-# ---------------------------------------------------------------------------
-
-
-def test_results_written_to_cache_file(tmp_path: Path) -> None:
-    """Filter results are persisted to the expected output file."""
-    service, _ = _make_service(tmp_path)
-    house = _make_house()
-
-    service.filter([house], _SAMPLE_CRITERIA)
-
-    cache_file = tmp_path / "output" / house.slug / "text_analysis.json"
-    assert cache_file.exists()
-
-    data = json.loads(cache_file.read_text(encoding="utf-8"))
-    analysis = TextAnalysis(**data)
-    assert analysis.slug == house.slug
-    assert len(analysis.evaluations) == 4
-
-
-# ---------------------------------------------------------------------------
-# Model serialization
-# ---------------------------------------------------------------------------
-
-
 class ModelSerializationCase(NamedTuple):
     """Test case for text analysis model round-trip."""
 
@@ -515,6 +335,150 @@ MODEL_SERIALIZATION_CASES = [
 ]
 
 
+# ===========================================================================
+# Happy path
+# ===========================================================================
+
+# --- Criteria hash ---
+
+
+@pytest.mark.parametrize(
+    "description, criteria_a, criteria_b, should_match",
+    CRITERIA_HASH_CASES,
+)
+def test_criteria_hash(
+    description: str,
+    criteria_a: dict[str, Any],
+    criteria_b: dict[str, Any],
+    should_match: bool,
+) -> None:
+    # Act
+    hash_a = _compute_criteria_hash(criteria_a)
+    hash_b = _compute_criteria_hash(criteria_b)
+
+    # Assert
+    if should_match:
+        assert hash_a == hash_b
+    else:
+        assert hash_a != hash_b
+
+
+# --- Criteria list building ---
+
+
+@pytest.mark.parametrize("description, criteria, expected", CRITERIA_LIST_CASES)
+def test_build_criteria_list(
+    description: str,
+    criteria: dict[str, Any],
+    expected: list[tuple[str, str]],
+) -> None:
+    # Act
+    result = _build_criteria_list(criteria)
+
+    # Assert
+    assert result == expected
+
+
+# --- FilterResult mapping ---
+
+
+@pytest.mark.parametrize(
+    "description, evaluations, expected_p1, expected_p2, expected_excluded",
+    FILTER_RESULT_CASES,
+)
+def test_filter_result_mapping(
+    description: str,
+    evaluations: list[CriterionResult],
+    expected_p1: dict[str, bool],
+    expected_p2: dict[str, bool],
+    expected_excluded: dict[str, bool],
+) -> None:
+    # Arrange
+    analysis = TextAnalysis(slug="test", criteria_hash="abc", evaluations=evaluations)
+
+    # Act
+    result = analysis.to_filter_result()
+
+    # Assert
+    assert result.p1 == expected_p1
+    assert result.p2 == expected_p2
+    assert result.excluded == expected_excluded
+
+
+# --- Full filter flow ---
+
+
+@pytest.mark.parametrize(
+    "description, listing_text, llm_evals, expected_p1_values, expected_excluded_values",
+    FILTER_FLOW_CASES,
+)
+def test_filter_flow(
+    description: str,
+    listing_text: str,
+    llm_evals: list[dict[str, Any]],
+    expected_p1_values: list[bool],
+    expected_excluded_values: list[bool],
+    tmp_path: Path,
+) -> None:
+    # Arrange
+    response = _make_llm_response(llm_evals)
+    service, mock_llm = _make_service(tmp_path, response)
+    house = _make_house(listing_text=listing_text)
+
+    # Act
+    results = service.filter([house], _SAMPLE_CRITERIA)
+
+    # Assert
+    assert house.slug in results
+    fr = results[house.slug]
+    assert list(fr.p1.values()) == expected_p1_values
+    assert list(fr.excluded.values()) == expected_excluded_values
+    mock_llm.complete_structured.assert_called_once()
+
+
+# --- Caching behaviour ---
+
+
+def test_cache_hit_skips_llm_call(tmp_path: Path) -> None:
+    """When cached analysis exists with matching criteria hash, skip the LLM."""
+    # Arrange
+    service, mock_llm = _make_service(tmp_path)
+    house = _make_house()
+    service.filter([house], _SAMPLE_CRITERIA)
+    assert mock_llm.complete_structured.call_count == 1
+
+    # Act
+    service.filter([house], _SAMPLE_CRITERIA)
+
+    # Assert
+    assert mock_llm.complete_structured.call_count == 1
+
+
+# --- Cache file persistence ---
+
+
+def test_results_written_to_cache_file(tmp_path: Path) -> None:
+    """Filter results are persisted to the expected output file."""
+    # Arrange
+    service, _ = _make_service(tmp_path)
+    house = _make_house()
+
+    # Act
+    service.filter([house], _SAMPLE_CRITERIA)
+
+    # Assert
+    cache_file = tmp_path / "output" / house.slug / "text_analysis.json"
+    assert cache_file.exists()
+
+    data = json.loads(cache_file.read_text(encoding="utf-8"))
+    analysis = TextAnalysis(**data)
+    assert analysis.slug == house.slug
+    assert len(analysis.evaluations) == 4
+
+
+# --- Model serialization ---
+
+
 @pytest.mark.parametrize(
     "description, slug, n_evaluations",
     MODEL_SERIALIZATION_CASES,
@@ -524,6 +488,7 @@ def test_model_serialization(
     slug: str,
     n_evaluations: int,
 ) -> None:
+    # Arrange
     evaluations = [
         CriterionResult(
             criterion_name=f"criterion_{i}",
@@ -539,42 +504,29 @@ def test_model_serialization(
         criteria_hash="abc123",
         evaluations=evaluations,
     )
+
+    # Act
     data = analysis.model_dump()
     restored = TextAnalysis(**data)
+
+    # Assert
     assert restored == analysis
     assert len(restored.evaluations) == n_evaluations
 
 
-# ---------------------------------------------------------------------------
-# Error handling
-# ---------------------------------------------------------------------------
-
-
-def test_llm_error_propagates(tmp_path: Path) -> None:
-    """LLM service errors should propagate to the caller."""
-    mock_llm = MagicMock()
-    mock_llm.complete_structured.side_effect = RuntimeError("LLM unavailable")
-    output_dir = tmp_path / "output"
-    output_dir.mkdir(parents=True)
-    service = LLMTextFilterService(llm_service=mock_llm, output_dir=output_dir)
-    house = _make_house()
-
-    with pytest.raises(RuntimeError, match="LLM unavailable"):
-        service.filter([house], _SAMPLE_CRITERIA)
-
-
-# ---------------------------------------------------------------------------
-# Multiple houses
-# ---------------------------------------------------------------------------
+# --- Multiple houses ---
 
 
 def test_multiple_houses_processed(tmp_path: Path) -> None:
     """Each house gets its own analysis and cache file."""
+    # Arrange
     service, mock_llm = _make_service(tmp_path)
     houses = [_make_house(slug="house-a"), _make_house(slug="house-b")]
 
+    # Act
     results = service.filter(houses, _SAMPLE_CRITERIA)
 
+    # Assert
     assert len(results) == 2
     assert "house-a" in results
     assert "house-b" in results
@@ -585,12 +537,92 @@ def test_multiple_houses_processed(tmp_path: Path) -> None:
     assert (tmp_path / "output" / "house-b" / "text_analysis.json").exists()
 
 
-# ---------------------------------------------------------------------------
-# Name property
-# ---------------------------------------------------------------------------
+# --- Name property ---
 
 
 def test_name_property(tmp_path: Path) -> None:
     """Service reports 'llm_text_filter' as its name."""
+    # Arrange
     service, _ = _make_service(tmp_path)
+
+    # Act & Assert
     assert service.name == "llm_text_filter"
+
+
+# ===========================================================================
+# Edge cases
+# ===========================================================================
+
+# --- Criteria drift ---
+
+
+def test_criteria_drift_triggers_reanalysis(tmp_path: Path) -> None:
+    """When criteria change, the cached result should be ignored."""
+    # Arrange
+    service, mock_llm = _make_service(tmp_path)
+    house = _make_house()
+    service.filter([house], _SAMPLE_CRITERIA)
+    assert mock_llm.complete_structured.call_count == 1
+    changed_criteria = {
+        "p1_criteria": ["has a swimming pool"],
+        "p2_criteria": [],
+        "excluded_criteria": [],
+    }
+    # Update the LLM mock for the new criteria
+    mock_llm.complete_structured.return_value = _TextAnalysisResult(
+        evaluations=[
+            _CriterionEval(
+                criterion_name="has a swimming pool",
+                met=False,
+                confidence=0.70,
+                reasoning="No pool mentioned.",
+            ),
+        ],
+    )
+
+    # Act
+    service.filter([house], changed_criteria)
+
+    # Assert
+    assert mock_llm.complete_structured.call_count == 2
+
+
+# --- Corrupt cache ---
+
+
+def test_corrupt_cache_triggers_reanalysis(tmp_path: Path) -> None:
+    """When the cache file is corrupt JSON, the service should re-analyze."""
+    # Arrange
+    service, mock_llm = _make_service(tmp_path)
+    house = _make_house()
+    cache_file = tmp_path / "output" / house.slug / "text_analysis.json"
+    cache_file.parent.mkdir(parents=True, exist_ok=True)
+    cache_file.write_text("{ not valid json", encoding="utf-8")
+
+    # Act
+    service.filter([house], _SAMPLE_CRITERIA)
+
+    # Assert
+    assert mock_llm.complete_structured.call_count == 1
+
+
+# ===========================================================================
+# Error / failure cases
+# ===========================================================================
+
+# --- LLM error propagation ---
+
+
+def test_llm_error_propagates(tmp_path: Path) -> None:
+    """LLM service errors should propagate to the caller."""
+    # Arrange
+    mock_llm = MagicMock()
+    mock_llm.complete_structured.side_effect = RuntimeError("LLM unavailable")
+    output_dir = tmp_path / "output"
+    output_dir.mkdir(parents=True)
+    service = LLMTextFilterService(llm_service=mock_llm, output_dir=output_dir)
+    house = _make_house()
+
+    # Act & Assert
+    with pytest.raises(RuntimeError, match="LLM unavailable"):
+        service.filter([house], _SAMPLE_CRITERIA)
