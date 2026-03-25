@@ -26,4 +26,13 @@ permissions:
   id-token: write   # OIDC login to Azure
   contents: read
 
+# Resource names derived from infra/main.tf naming convention:
+#   app_prefix = "househelper", environment = workflow input
+env:
+  APP_PREFIX: househelper
+  RG_NAME:   rg-househelper-${{ inputs.environment }}
+  ACR:       crhousehelper${{ inputs.environment }}.azurecr.io
+  CA_NAME:   ca-househelper-${{ inputs.environment }}-backend
+  SWA_NAME:  stapp-househelper-${{ inputs.environment }}
+
 jobs: {}
