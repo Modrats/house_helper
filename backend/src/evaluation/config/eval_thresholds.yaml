@@ -1,0 +1,29 @@
+# Evaluation success thresholds — all evaluators read from this file.
+# Latency/cost: value must be <= threshold (lower is better).
+# Accuracy/scores: value must be >= threshold (higher is better).
+
+text_filter:
+  accuracy: 0.99
+  false_negative_rate: 0.01  # must be <=
+  latency_seconds: 2.0       # must be <=
+
+photo_classifier:
+  accuracy: 0.70
+  precision: 0.65
+  recall: 0.65
+  confidence_calibration: 0.70
+  llm_judge_score: 3.5
+  latency_seconds: 10.0      # must be <=
+  cost_usd: 0.05             # must be <=
+
+criteria_evaluator:
+  accuracy: 0.70
+  false_negative_rate: 0.15  # must be <=
+  llm_judge_score: 3.5
+  latency_seconds: 15.0      # must be <=
+  cost_usd: 0.10             # must be <=
+
+imagineering:
+  llm_judge_score: 3.5
+  latency_seconds: 60.0      # must be <=
+  cost_usd: 0.50             # must be <=

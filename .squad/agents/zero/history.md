@@ -36,6 +36,17 @@
 - Tests: 44 parametrised cases, NamedTuple + `@pytest.mark.parametrize`, zero class-based tests. `tmp_path` fixture for filesystem cases.
 - VCR cassette structure placeholder at `tests/fixtures/cassettes/` — record with `pytest --record-mode=new_episodes` once API keys are available.
 
+### 2026-03-24 — Gustave code review of eval harness: 11 gaps to fix
+
+Gustave (Lead) reviewed the evaluation harness delivered in Issue #33 and identified 11 gaps (all direct fixes, no redesigns):
+- `classification/` dir must be `classifier/` to match `plan.md`.
+- `criteria_result.json` must be at `criteria/criteria_result.json`, not slug root.
+- `_check_valid_json` must reject non-dict JSON roots — arrays crash callers on `.keys()`.
+- `ConsistencyJudgment` is dead code — implement `_evaluate_consistency` or remove and update docstring.
+- `run_llm_judge` docstring falsely claims batching — remove or note as future work.
+- `_DEFAULT_API_VERSION` violates team decision — use `os.environ["AZURE_OPENAI_API_VERSION"]` and raise on missing.
+- Silent `except Exception` with hardcoded path fallbacks in `llm_judge.py` and `deterministic.py` — let imports fail loudly.
+- `write_summary` not exported from `__init__.py`. Full gap list in decisions.md.
 ### 2026-03-24: Distance calculator service (Issue #11, PR #52)
 
 - **IDistanceCalculator** interface at `interfaces/distance_calculator.py` — ABC with `calculate_distances(slug) -> DistanceResult`.
@@ -48,3 +59,12 @@
 - Sample destinations (Amsterdam Central, Office) added to `config/criteria.yaml`.
 - Tests: 21 parametrised cases, NamedTuple + `@pytest.mark.parametrize`. Mocks `requests.get` at the service module boundary.
 - `House` model already has `distances: dict[str, int]` and `with_distance()` — ready for pipeline integration.
+
+### 2026-03-24: ConfigLoader refactor (PR #57 review response)
+
+- **Decision**: Replaced 4 `load_*()` functions + `_load_raw()` + public globals with a single `ConfigLoader` class in `config.py`. Each function called `_load_raw()` independently; `ConfigLoader._load()` lazy-caches the YAML and is called once per instance.
+- **Public API is the class**: `ConfigLoader(path)` or `ConfigLoader()` for default. Methods: `criteria()`, `storage_paths()`, `distance_config()`, `photo_criteria()`. Caller doesn't need to know the path OR that it's YAML-backed.
+- **Private module constants**: `_DEFAULT_YAML` and `_REPO_ROOT` (underscore-prefixed) are implementation details, not the public API the reviewer objected to. They're necessary because Python classes can't resolve `__file__` at class body level conveniently.
+- **Backward compat**: No thin wrappers added — updated all callers (core.py × 5 sites, run.py × 1, test_photo_checker.py × 3) directly. Cleaner than maintaining wrapper functions.
+- **Swappable unit**: The class IS the swap point per the reviewer's request. An `AzureAppConfigLoader` would expose the same 4 methods.
+- **Branch discipline**: Be explicit about which branch you're on before committing. `git branch --show-current` before any `git add`. This refactor accidentally committed to squad/11 first, required undo + re-apply on squad/10.
