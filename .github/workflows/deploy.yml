@@ -53,7 +53,7 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Deploy backend
-        run: make deploy-backend
+        run: make -C backend deploy
         env:
           ACR:       ${{ env.ACR }}
           IMAGE_TAG: ${{ github.sha }}
@@ -89,7 +89,7 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Deploy frontend
-        run: make deploy-frontend
+        run: make -C frontend deploy
         env:
           SWA_NAME: ${{ env.SWA_NAME }}
           SWA_RG:   ${{ env.RG_NAME }}

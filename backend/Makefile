@@ -1,4 +1,4 @@
-.PHONY: help install lint test format dev pipeline clean eval
+.PHONY: help install lint test format dev pipeline deploy clean eval
 
 # Default target
 help:
@@ -43,6 +43,17 @@ dev:
 # Run filter pipeline against input_data houses
 pipeline:
 	uv run python -m src.run
+
+# Deploy to Azure Container Apps (called from CI)
+# Requires: ACR, IMAGE_TAG, CA_NAME, CA_RG
+deploy:
+	az acr login --name $(ACR)
+	docker build -t $(ACR)/backend:$(IMAGE_TAG) .
+	docker push $(ACR)/backend:$(IMAGE_TAG)
+	az containerapp update \
+		--name $(CA_NAME) \
+		--resource-group $(CA_RG) \
+		--image $(ACR)/backend:$(IMAGE_TAG)
 
 # Run all evaluators (set COMPONENT=name to run one)
 eval:
