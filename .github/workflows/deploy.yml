@@ -1,0 +1,95 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "What to deploy"
+        required: true
+        type: choice
+        options:
+          - all
+          - backend
+          - frontend
+        default: all
+      environment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+        default: dev
+
+permissions:
+  id-token: write   # OIDC login to Azure
+  contents: read
+
+# Resource naming convention for this workflow:
+#   APP_PREFIX = "househelper", environment = workflow input
+env:
+  APP_PREFIX: househelper
+  RG_NAME:   rg-househelper-${{ inputs.environment }}
+  ACR:       crhousehelper${{ inputs.environment }}.azurecr.io
+  CA_NAME:   ca-househelper-${{ inputs.environment }}-backend
+  SWA_NAME:  stapp-househelper-${{ inputs.environment }}
+
+jobs:
+  deploy-backend:
+    name: Deploy Backend
+    if: inputs.target == 'all' || inputs.target == 'backend'
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy backend
+        run: make -C backend deploy
+        env:
+          ACR:       ${{ env.ACR }}
+          IMAGE_TAG: ${{ github.sha }}
+          CA_NAME:   ${{ env.CA_NAME }}
+          CA_RG:     ${{ env.RG_NAME }}
+
+  deploy-frontend:
+    name: Deploy Frontend
+    if: inputs.target == 'all' || inputs.target == 'frontend'
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy frontend
+        run: make -C frontend deploy
+        env:
+          SWA_NAME: ${{ env.SWA_NAME }}
+          SWA_RG:   ${{ env.RG_NAME }}

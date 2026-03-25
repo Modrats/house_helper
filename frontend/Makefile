@@ -1,4 +1,4 @@
-.PHONY: help install lint test format build dev clean
+.PHONY: help install lint test format build dev deploy clean
 
 # Default target
 help:
@@ -40,6 +40,15 @@ dev:
 # Build for production
 build:
 	pnpm build
+
+# Deploy to Azure Static Web Apps (called from CI)
+# Requires: SWA_NAME, SWA_RG
+deploy: build
+	az staticwebapp deploy \
+		--name $(SWA_NAME) \
+		--resource-group $(SWA_RG) \
+		--app-location dist \
+		--no-build
 
 # Clean build artifacts
 clean:
