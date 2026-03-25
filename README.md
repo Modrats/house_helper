@@ -91,64 +91,130 @@ Given scraped house data (photos + listing text), House Helper runs a multi-stag
 
 ```
 house_helper/
-├── input_data/              # Sample house data
+├── input_data/              # Immutable scraper output (source of truth)
 │   └── houses/
 │       └── <house_slug>/    # Each house in its own folder
-├── backend/                 # AI pipeline + API (Python)
-│   ├── src/
-│   │   ├── interfaces/      # ABCs and Protocols
-│   │   ├── services/        # Concrete implementations
-│   │   ├── models/          # Pydantic data structures
-│   │   ├── api/             # FastAPI routes
-│   │   └── runners/         # Entry points (CLI, API, queue)
+├── outputs/                 # Regenerable pipeline artifacts (gitignored)
+│   └── houses/
+│       └── <house_slug>/
+├── backend/                 # AI pipeline + API (Python / uv)
+│   ├── config/
+│   │   └── criteria.yaml    # Pipeline criteria (text, photo, distance)
 │   ├── prompts/             # LLM prompt templates
+│   ├── src/
+│   │   ├── config.py        # YAML config loader
+│   │   ├── core.py          # Composition root — wires interfaces to services
+│   │   ├── run.py           # CLI entry point for the full pipeline
+│   │   ├── interfaces/      # ABCs / Protocols only (no implementation)
+│   │   ├── services/        # Concrete implementations (one responsibility each)
+│   │   ├── filters/         # Pipeline stage orchestrators
+│   │   ├── models/          # Pydantic data structures
+│   │   ├── api/             # FastAPI app (routes, models)
+│   │   ├── runners/         # FilterPipeline runner
+│   │   └── evaluation/      # Evaluation harness
 │   └── tests/
-├── frontend/                # React SPA
-├── infra/                   # Bicep/Terraform templates
-└── old/                     # Legacy repos (being migrated)
+├── frontend/                # React SPA (Vite + TypeScript)
+├── infra/                   # Terraform templates (Azure)
+├── experiments/             # One-off experiment notebooks/scripts
+└── old/                     # Legacy repos (archived)
 ```
 
 ## House Data Structure
 
-Each house is stored in a folder named by slug (address with underscores):
+Input data and pipeline outputs are stored in separate top-level directories so raw scraped data is never mutated:
 
 ```
-houses/
-└── house_1/
-    ├── raw/                         # Immutable scraper output
-    │   ├── listing.json             # Schema.org metadata
-    │   ├── listing.txt              # Text description
-    │   ├── url.txt                  # Source URL
-    │   ├── screenshot.png           # Page screenshot
-    │   └── photos/                  # Original images
-    │       └── 001.jpg, 002.jpg...
-    │
-    └── outputs/                     # Regenerable pipeline artifacts
-        ├── classifier/
-        │   └── room_classifications.json
-        ├── criteria/
-        │   └── criteria_result.json
-        ├── distance/
-        │   └── distance_result.json
-        └── imagineering/
-            ├── summary.json
-            └── kitchen_001/
-                └── generated.png
+input_data/houses/<house_slug>/
+├── metadata.json        # Listing metadata (price, address, sqm, etc.)
+├── listing.txt          # Full text description
+├── url.txt              # Source URL
+├── screenshot.png       # Page screenshot
+└── photos/              # Original images (001.jpg, 002.jpg, ...)
+
+outputs/houses/<house_slug>/
+├── room_classifications.json    # Stage 2 — room type per photo
+├── photo_criteria.json          # Stage 3 — visual criteria results
+└── criteria/
+    └── filter_result.json       # Stage 1 — text criteria result
 ```
+
+Imagineering outputs (Stage 4) are written alongside inputs as `outputs/houses/<house_slug>/imagineering/`.
 
 ## Quick Start
 
 ### Prerequisites
 
-- Python 3.12+
-- Node.js 20+ (for frontend)
-- API keys for Azure OpenAI, Azure Maps, and Azure AI Foundry (FLUX)
+- Python 3.12+ with [uv](https://docs.astral.sh/uv/)
+- Node.js 20+ and pnpm (for frontend)
+- Azure OpenAI resource (for text filtering, room classification, photo evaluation)
+- Azure Maps key (optional — enables commute-time calculations)
+- Azure AI Foundry endpoint with FLUX.2-pro deployed (optional — enables imagineering)
 
 ### Setup
 
 ```bash
-TBD
+# Install all dependencies
+make install
+
+# Copy and fill in environment variables
+cp backend/sample.env backend/.env
+# Edit backend/.env with your API keys (see Environment Variables below)
+
+# Run linters and tests
+make lint
+make test
 ```
+
+### Running the pipeline
+
+```bash
+# Run all stages (text → classify → photo criteria → distance)
+make pipeline
+
+# Include the imagineering stage (calls FLUX.2-pro — costs money per image)
+make pipeline IMAGINEERING=1
+```
+
+Results are written to `outputs/houses/`.
+
+### Running the dev servers
+
+```bash
+# Start backend (port 8000) and frontend (port 5173) together
+make dev
+
+# Or individually
+make dev-backend
+make dev-frontend
+```
+
+### Docker
+
+```bash
+make docker-build     # Build images
+make docker-up        # Start all services
+make docker-down      # Stop all services
+make backend-run      # Start only the backend container
+make frontend-run     # Start only the frontend container
+```
+
+## Environment Variables
+
+Copy `backend/sample.env` to `backend/.env` and set the following:
+
+| Variable | Required | Description |
+|---|---|---|
+| `AZURE_OPENAI_ENDPOINT` | ✅ | Azure OpenAI resource endpoint |
+| `AZURE_OPENAI_API_KEY` | ✅ | Azure OpenAI API key |
+| `AZURE_OPENAI_DEPLOYMENT` | ✅ | Deployment name (e.g. `gpt-4o`) |
+| `AZURE_MAPS_KEY` | optional | Azure Maps subscription key — enables distance stage |
+| `FLUX_API_KEY` | optional* | FLUX.2-pro API key — required for `--imagineering` |
+| `FLUX_ENDPOINT` | optional* | FLUX.2-pro endpoint URL — required for `--imagineering` |
+| `FLUX_GUIDANCE` | optional* | Guidance scale (e.g. `3.5`) — required for `--imagineering` |
+| `FLUX_SEED` | optional | Fixed seed for reproducible imagineering runs |
+| `CORS_ORIGINS` | optional | Comma-separated allowed origins (default: `http://localhost:5173`) |
+
+\* All three `FLUX_*` vars are required together when the imagineering stage is enabled.
 
 ## License
 
