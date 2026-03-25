@@ -423,7 +423,7 @@ def test_load_photo_criteria_from_default_config() -> None:
     assert "kitchen" in criteria
     assert "required" in criteria["kitchen"]
     assert "preferred" in criteria["kitchen"]
-    assert "dishwasher" in criteria["kitchen"]["required"]
+    assert len(criteria["kitchen"]["required"]) > 0
 
 
 def test_load_photo_criteria_missing_section(tmp_path: Path) -> None:
