@@ -35,4 +35,27 @@ env:
   CA_NAME:   ca-househelper-${{ inputs.environment }}-backend
   SWA_NAME:  stapp-househelper-${{ inputs.environment }}
 
-jobs: {}
+jobs:
+  deploy-backend:
+    name: Deploy Backend
+    if: inputs.target == 'all' || inputs.target == 'backend'
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy backend
+        run: make deploy-backend
+        env:
+          ACR:       ${{ env.ACR }}
+          IMAGE_TAG: ${{ github.sha }}
+          CA_NAME:   ${{ env.CA_NAME }}
+          CA_RG:     ${{ env.RG_NAME }}
