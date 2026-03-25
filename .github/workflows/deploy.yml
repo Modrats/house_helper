@@ -1,0 +1,29 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "What to deploy"
+        required: true
+        type: choice
+        options:
+          - all
+          - backend
+          - frontend
+        default: all
+      environment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+        default: dev
+
+permissions:
+  id-token: write   # OIDC login to Azure
+  contents: read
+
+jobs: {}
